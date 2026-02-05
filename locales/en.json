@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Loading data...",
+    "error": "An error occurred",
+    "select": "Select",
+    "search": "Search",
+    "all": "All"
+  },
+  "prefecture": {
+    "label": "Select Prefecture:",
+    "error": "Failed to fetch municipalities"
+  },
+  "municipality": {
+    "label": "Select Municipality:",
+    "placeholder": "Search municipality",
+    "notFound": "Unable to select municipality",
+    "ascending": "Ascending",
+    "descending": "Descending"
+  },
+  "timeFilter": {
+    "label": "Select Time Period:",
+    "all": "All",
+    "morning": "Morning (6:00〜12:00)",
+    "afternoon": "Afternoon (12:00〜18:00)",
+    "night": "Night (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "No weather forecast available for the selected time period.",
+    "fetchError": "Failed to fetch weather data",
+    "locationError": "Location access is not permitted",
+    "locationPermissionError": "Please ensure location services are enabled."
+  },
+  "world": {
+    "modeOn": "World Mode: ON",
+    "modeOff": "World Mode: OFF",
+    "placeholder": "Enter city name (e.g., London)",
+    "search": "Search World Weather"
+  },
+  "language": {
+    "label": "Language: ",
+    "japanese": "日本語",
+    "english": "English"
+  }
+}

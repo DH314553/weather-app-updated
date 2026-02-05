@@ -1,0 +1,63 @@
+name: Release Android App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository manually  # 🚀 checkout の代わりに git clone を使用
+        run: |
+          git clone https://github.com/DH314553/weather-app.git .
+          git checkout main
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install EAS CLI  # ✅ Expo CLI をインストール
+        run: npm install -g eas-cli
+
+      - name: Build Android app
+        env:
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+        run: |
+          eas build --platform android --non-interactive --profile production
+          if [ -f .eas/build-id ]; then
+            echo "BUILD_ID=$(cat .eas/build-id)" >> "$GITHUB_ENV"
+          else
+            echo "Build ID file not found, using fallback ID"
+            echo "BUILD_ID=f1a783ce-61ca-4a1f-845a-fdadd7fafc3b" >> "$GITHUB_ENV"
+          fi
+        id: build
+
+      - name: Commit and push build files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Auto-update build files" || echo "No changes to commit"
+          git push origin main
+        continue-on-error: true
+
+  submit:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository manually  # 🚀 checkout の代わりに git clone を使用
+        run: |
+          git clone https://github.com/DH314553/weather-app.git .
+          git checkout main
+
+      - name: Install EAS CLI  # ✅ Expo CLI をインストール
+        run: npm install -g eas-cli    
+
+      - name: Submit Android app to Google Play
+        env:
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$GOOGLE_SERVICE_ACCOUNT" > google-service-account.json
+          npx eas submit --platform android --non-interactive --path dist/*.aab --key google-service-account.json

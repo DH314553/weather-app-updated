@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "weather-app",
+    "slug": "weather-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/weather.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/weather.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.daisaku31469.weatherapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/weather.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.daisaku31469.weatherapp",
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/weather.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f1a783ce-61ca-4a1f-845a-fdadd7fafc3b"
+      },
+      "resasApiKey": "YOUR_RESES_API_KEY"
+    },
+    "owner": "daisaku31469"
+  }
+}

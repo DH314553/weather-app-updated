@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "データを読み込んでいます...",
+    "error": "エラーが発生しました",
+    "select": "選択",
+    "search": "検索",
+    "all": "すべて"
+  },
+  "prefecture": {
+    "label": "都道府県を選択:",
+    "error": "市区町村の取得に失敗しました"
+  },
+  "municipality": {
+    "label": "市区町村を選択:",
+    "placeholder": "市区町村を検索",
+    "notFound": "市区町村を選択できません",
+    "ascending": "昇順",
+    "descending": "降順"
+  },
+  "timeFilter": {
+    "label": "時間帯を選択:",
+    "all": "すべて",
+    "morning": "朝 (6:00〜12:00)",
+    "afternoon": "午後 (12:00〜18:00)",
+    "night": "夜 (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "選択された時間帯の天気予報はありません。",
+    "fetchError": "天気データの取得に失敗しました",
+    "locationError": "位置情報のアクセスが許可されていません",
+    "locationPermissionError": "位置情報サービスが有効になっていることを確認してください。"
+  },
+  "world": {
+    "modeOn": "世界モード: ON",
+    "modeOff": "世界モード: OFF",
+    "placeholder": "都市名を入力（例: London）",
+    "search": "世界の天気を検索"
+  },
+  "language": {
+    "label": "言語: ",
+    "japanese": "日本語",
+    "english": "English"
+  }
+}
