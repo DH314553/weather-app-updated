@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert, Modal } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet, ScrollView, Alert, Modal, Pressable, AppState } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { WeatherCard } from '../components/WeatherCard';
@@ -8,9 +8,14 @@ import { WeatherData } from '../types/weather';
 import * as Location from 'expo-location';
 import { fetchWeatherData, fetchCoordinates, predictWeather, fetchMunicipalities } from '../utils/weather';
 import { usePrefecture } from '../PrefectureContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cudaRidgeDetection } from '../utils/ridgeDetection';
-import wanakana from 'wanakana';
+import * as FileSystem from 'expo-file-system';
 import { t, setLanguage, getCurrentLanguage } from '../utils/i18n';
+import { getRegionInfo } from '../utils/weather';
+import { City } from '../City';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync, scheduleWeatherNotification } from '../utils/notifications';
 
 
 type PrefectureData = {
@@ -20,6 +25,19 @@ type PrefectureData = {
     lng: string;
   };
 };
+
+export type Municipality = {
+  name: string;
+  kana: string;
+};
+
+export type MunicipalityResponse = {
+  municipalities: Municipality[];
+  selectedMunicipality: string | null;
+  error: string | null;
+};
+
+
 
 const PREFECTURE_DATA: PrefectureData = {
   '01': { name: '北海道', lat: '43.064615', lng: '141.346807' },
@@ -71,6 +89,56 @@ const PREFECTURE_DATA: PrefectureData = {
   '47': { name: '沖縄県', lat: '26.212401', lng: '127.680932' }
 };
 
+const prefNameMap = {
+  "Hokkaido": "北海道",
+  "Aomori": "青森県",
+  "Iwate": "岩手県",
+  "Miyagi": "宮城県",
+  "Akita": "秋田県",
+  "Yamagata": "山形県",
+  "Fukushima": "福島県",
+  "Ibaraki": "茨城県",
+  "Tochigi": "栃木県",
+  "Gunma": "群馬県",
+  "Saitama": "埼玉県",
+  "Chiba": "千葉県",
+  "Tokyo": "東京都",
+  "Kanagawa": "神奈川県",
+  "Niigata": "新潟県",
+  "Toyama": "富山県",
+  "Ishikawa": "石川県",
+  "Fukui": "福井県",
+  "Yamanashi": "山梨県",
+  "Nagano": "長野県",
+  "Gifu": "岐阜県",
+  "Shizuoka": "静岡県",
+  "Aichi": "愛知県",
+  "Mie": "三重県",
+  "Shiga": "滋賀県",
+  "Kyoto": "京都府",
+  "Osaka": "大阪府",
+  "Hyogo": "兵庫県",
+  "Nara": "奈良県",
+  "Wakayama": "和歌山県",
+  "Tottori": "鳥取県",
+  "Shimane": "島根県",
+  "Okayama": "岡山県",
+  "Hiroshima": "広島県",
+  "Yamaguchi": "山口県",
+  "Tokushima": "徳島県",
+  "Kagawa": "香川県",
+  "Ehime": "愛媛県",
+  "Kochi": "高知県",
+  "Fukuoka": "福岡県",
+  "Saga": "佐賀県",
+  "Nagasaki": "長崎県",
+  "Kumamoto": "熊本県",
+  "Oita": "大分県",
+  "Miyazaki": "宮崎県",
+  "Kagoshima": "鹿児島県",
+  "Okinawa": "沖縄県"
+};
+
 const TIME_FILTERS = [
   { label: 'すべて', value: 'all' },
   { label: '朝 (6:00〜12:00)', value: 'morning' },
@@ -81,9 +149,10 @@ const TIME_FILTERS = [
 function HomeScreen() {
   const prefectureContext = usePrefecture();
   const [selectedPrefecture, setSelectedPrefecture] = useState(prefectureContext?.selectedPrefecture || { name: '東京都', lat: '35.689488', lng: '139.691706' });
-  const [selectedMunicipality, setSelectedMunicipality] = useState<string>('');
-  const [municipalities, setMunicipalities] = useState<string[]>([]);
-  const [filteredMunicipalities, setFilteredMunicipalities] = useState<string[]>([]);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<Municipality | null>(null);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  // ステート宣言の部分をこのように修正（または確認）
+  const [filteredMunicipalities, setFilteredMunicipalities] = useState<Municipality[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<string>('all');
   const [weatherDataList, setWeatherDataList] = useState<WeatherData[]>([]);
   const [currentWeather, setCurrentWeather] = useState<WeatherData[] | null>(null);
@@ -92,16 +161,18 @@ function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<number>(0);
   const progressIntervalRef = React.useRef<number | null>(null);
-  const [worldMode, setWorldMode] = useState<boolean>(false);
-  const [worldCity, setWorldCity] = useState<string>('');
-  const [language, setLanguageState] = useState<'ja' | 'en'>(getCurrentLanguage());
+  // world mode removed
+  const [language, setLanguageState] = useState<'ja' | 'en'>((getCurrentLanguage() as 'ja' | 'en') || 'ja');
   const [error, setError] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<WeatherData | null>(null);
   const [showWeatherDetail, setShowWeatherDetail] = useState<boolean>(false);
+  const [nowIndex, setNowIndex] = useState<number>(0);
+  const nowIntervalRef = React.useRef<number | null>(null);
+  const municipalityRequestId = React.useRef(0);
 
   useEffect(() => {
-    console.log('selectedMunicipality changed ->', selectedMunicipality);
-  }, [selectedMunicipality]);
+    console.log('selectedMunicipality changed ->', selectedMunicipality?.name);
+  }, [selectedMunicipality?.name]);
 
   // clear progress interval on unmount
   useEffect(() => {
@@ -112,314 +183,439 @@ function HomeScreen() {
     };
   }, []);
 
-  // Initial weather fetch using prefecture coordinates (on mount) - shows data immediately
+  // Sync local selectedPrefecture with PrefectureContext changes made elsewhere
   useEffect(() => {
-    const fetchInitialWeather = async () => {
-      try {
-        setLoading(true);
-        setLoadingProgress(0);
+    if (prefectureContext && prefectureContext.selectedPrefecture) {
+      const ctx = prefectureContext.selectedPrefecture;
+      const local = selectedPrefecture;
+      if (JSON.stringify(ctx) !== JSON.stringify(local)) {
+        setSelectedPrefecture(ctx);
+      }
+    }
+  }, [prefectureContext?.selectedPrefecture]);
 
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-        }
-        progressIntervalRef.current = setInterval(() => {
-          setLoadingProgress(prev => {
-            const next = prev + Math.random() * 10;
-            return next >= 90 ? 90 : Math.round(next);
-          });
-        }, 300) as unknown as number;
+  // weather専用にコンポーネント直下で定義しておく
+// const weatherRequestId = React.useRef(0);
 
-        const response = await fetchWeatherData(selectedPrefecture.lat, selectedPrefecture.lng);
+// When municipality changes: fetch weather for the selected municipality
+  useEffect(() => {
+  const fetchWeather = async () => {
+    if (!selectedMunicipality) return;
 
-        if (!response || !response.hourly || !response.hourly.weather_code) {
-          throw new Error('Invalid weather data structure');
-        }
+    try {
+      setLoading(true);
+      setError(null);
 
-        const weatherCodeArray = response.hourly.weather_code.map((code) => [code]);
-        const { count } = cudaRidgeDetection(weatherCodeArray, 0.5);
+      // 1. プロパティの存在を完全に「文字列」としてチェックして取得
+      // これにより ReferenceError (Property doesn't exist) を回避します
+      let municipalityName = "";
+      let searchKey = "";
 
-        const processedData = response.hourly.time.map((time, index) => {
-          const dateTime = new Date(time);
-          const predictedWeather = predictWeather(
-            response.hourly.weather_code[index],
-            response.hourly.temperature_2m[index],
-            response.hourly.precipitation_probability[index],
-            response.current.relative_humidity_2m,
-            response.hourly.wind_speed_10m[index],
-            count,
-            0.5
-          );
+      if (typeof selectedMunicipality === 'object') {
+        // オブジェクトの場合、ブラケット記法で安全に取得
+        municipalityName = (selectedMunicipality as any)["name"] || "";
+        searchKey = (selectedMunicipality as any)["kana"] || municipalityName;
+      } else {
+        // 文字列の場合
+        municipalityName = selectedMunicipality;
+        searchKey = selectedMunicipality;
+      }
 
-          return {
-            dateIndex: index,
-            date: dateTime.toLocaleDateString('ja-JP', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long',
-            }),
-            dateTime: dateTime.toLocaleTimeString('ja-JP', {
-              hour: 'numeric',
-              minute: 'numeric'
-            }).replace(':', '時') + '分',
-            areaName: `${selectedPrefecture.name}（代表地点）`,
-            windSpeed: response.hourly.wind_speed_10m[index].toString(),
-            precipitation: response.hourly.precipitation_probability[index],
-            temperature: response.hourly.temperature_2m[index],
-            predictedWeather,
-            prefecture: selectedPrefecture.name,
-            actualWeather: response.hourly.weather_code[index].toString(),
-            isPredictionCorrect: false,
-            latitude: selectedPrefecture.lat,
-            longitude: selectedPrefecture.lng,
-          };
-        });
-
-        setWeatherDataList(processedData);
-        setLoadingProgress(100);
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-          progressIntervalRef.current = null;
-        }
-        setTimeout(() => setLoading(false), 300);
-      } catch (err) {
-        console.error('Error fetching initial weather:', err);
-        setError(err instanceof Error ? err.message : '天気データの取得に失敗しました');
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-          progressIntervalRef.current = null;
-        }
+      if (!municipalityName) {
         setLoading(false);
+        return;
+      }
+
+      console.log(`Fetching weather for: ${municipalityName} (Key: ${searchKey})`);
+
+      // 2. 座標取得
+      const coordinates = await fetchCoordinates(searchKey);
+
+      // 3. 天気データ取得
+      const response = await fetchWeatherData(
+        coordinates.lat,
+        coordinates.lon
+      );
+
+      if (!response?.hourly?.weather_code) {
+        throw new Error('Invalid weather data structure');
+      }
+
+      const processed = response.hourly.time.map((time: string, index: number) => {
+        const dateTime = new Date(time);
+        const predictedWeather = predictWeather(
+          response.hourly.weather_code[index],
+          response.hourly.temperature_2m[index],
+          response.hourly.precipitation_probability[index],
+          response.hourly.wind_speed_10m[index]
+        );
+
+        return {
+          dateIndex: index,
+          date: dateTime.toLocaleDateString('ja-JP'),
+          dateTime: `${dateTime.getHours()}時${dateTime.getMinutes()}分`,
+          areaName: municipalityName,
+          windSpeed: response.hourly.wind_speed_10m[index].toString(),
+          precipitation: response.hourly.precipitation_probability[index],
+          temperature: response.hourly.temperature_2m[index],
+          predictedWeather,
+          prefecture: typeof selectedPrefecture === 'object' ? (selectedPrefecture as any).name : selectedPrefecture,
+          actualWeather: response.hourly.weather_code[index].toString(),
+          isPredictionCorrect: false,
+          latitude: coordinates.lat,
+          longitude: coordinates.lon,
+        };
+      });
+
+      setWeatherDataList(processed);
+
+    } catch (err) {
+      console.error("Weather fetch error details:", err);
+      setError('天気取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchWeather();
+  }, [selectedMunicipality]);
+  // Extracted function so we can call it on demand (on mount and when app resumes)
+  const getCurrentLocationWeather = async () => {
+    try {
+      setLoading(true);
+      // 1. 位置情報の権限リクエスト
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('許可設定が必要です', 'アプリの設定から位置情報を許可してください。');
+        setLoading(false);
+        return;
+      }
+
+      // 2. 現在地の座標を取得
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = location.coords;
+
+
+      // 3. 逆ジオコーディングで都道府県・市区町村名を取得
+      const reverseGeocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+      let detectedPref = null;
+      let detectedCity = null;
+      if (reverseGeocode && reverseGeocode.length > 0) {
+        // 都道府県名const municipalityRequestId = React.useRef(0);
+
+        detectedPref = prefNameMap[reverseGeocode[0].region as keyof typeof prefNameMap];
+
+        // 市区町村名
+        detectedCity = reverseGeocode[0].city || reverseGeocode[0].subregion || reverseGeocode[0].district || reverseGeocode[0].name;
+      }
+      console.log('DEBUG: detectedPref:', detectedPref);
+      console.log('DEBUG: PREFECTURE_DATA names:', Object.values(PREFECTURE_DATA).map(p => p.name));
+
+      // PrefectureContextとローカルstateを常に更新（都道府県が変わった場合も）
+      if (detectedPref && PREFECTURE_DATA) {
+        const prefEntry = Object.values(PREFECTURE_DATA).find(p => p.name === detectedPref);
+        if (prefEntry) {
+          if (prefectureContext && typeof prefectureContext.setSelectedPrefecture === 'function') {
+            prefectureContext.setSelectedPrefecture({ name: detectedPref, lat: prefEntry.lat, lng: prefEntry.lng });
+          }
+          setSelectedPrefecture({ name: detectedPref, lat: prefEntry.lat, lng: prefEntry.lng });
+        }
+      }
+
+      // 市区町村リスト取得
+      const municipalitiesData = await fetchMunicipalities(detectedPref || selectedPrefecture.name);
+      if (municipalitiesData.error) {
+        console.error('Error fetching municipalities:', municipalitiesData.error);
+        setLoading(false);
+        return;
+      }
+      setMunicipalities(municipalitiesData.municipalities.map((name) => ({
+       name,
+       kana: "", // APIがkanaを返さないなら空
+      }))); // kana is empty as we don't have it from fetchMunicipalities
+      // 市区町村名がリストにあれば選択、なければ部分一致で最も近いものを選択
+      let selectedCity = '';
+      if (detectedCity) {
+        if (municipalitiesData.municipalities.includes(detectedCity)) {
+          selectedCity = detectedCity;
+        } else {
+          // 部分一致（例: 佐賀→佐賀市、唐津→唐津市など）
+          const match = municipalitiesData.municipalities.find(m => m.startsWith(detectedCity));
+          if (match) {
+            selectedCity = match;
+          } else {
+            // サフィックス一致（例: ...市, ...町, ...村, ...区, ...島）
+            const suffixMatch = municipalitiesData.municipalities.find(m => m.includes(detectedCity));
+            if (suffixMatch) {
+              selectedCity = suffixMatch;
+            }
+          }
+        }
+      }
+      setSelectedMunicipality(selectedCity ? { name: selectedCity, kana: "" } : null);
+
+      console.log('Detected city for weather fetch:', selectedCity);
+
+      const weatherData = await fetchWeatherData(latitude.toString(), longitude.toString());
+
+      console.log('Current location weather data:', weatherData);
+
+      if (!weatherData || !weatherData.hourly || !weatherData.hourly.weather_code) {
+        throw new Error('Invalid weather data structure from API');
+      }
+
+      // const weatherCodeArray = weatherData.hourly.weather_code.map((code) => [code]);
+      // const { count } = cudaRidgeDetection(weatherCodeArray, 0.5);
+
+      const processedData: WeatherData[] = weatherData.hourly.time.map((time, index) => {
+        const dateTime = new Date(time);
+        const predictedWeather = predictWeather(
+          weatherData.hourly.weather_code[index],
+          weatherData.hourly.temperature_2m[index],
+          weatherData.hourly.precipitation_probability[index],
+          // weatherData.current.relative_humidity_2m,
+          weatherData.hourly.wind_speed_10m[index],
+          // count,
+          // 0.5
+        );
+
+        return {
+          dateIndex: index,
+          date: dateTime.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long',
+          }),
+          dateTime: dateTime.toLocaleTimeString('ja-JP', {
+            hour: 'numeric',
+            minute: 'numeric'
+          }).replace(':', '時') + '分',
+          areaName: selectedMunicipality?.name || '',
+          windSpeed: weatherData.hourly.wind_speed_10m[index].toString(),
+          precipitation: weatherData.hourly.precipitation_probability[index],
+          temperature: weatherData.hourly.temperature_2m[index],
+          predictedWeather,
+          prefecture: selectedPrefecture.name,
+          actualWeather: weatherData.hourly.weather_code[index].toString(),
+          isPredictionCorrect: false,
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+        };
+      });
+      setCurrentWeather(processedData);
+    } catch (error) {
+      console.error("現在位置の天気データの取得に失敗しました:", error);
+      Alert.alert('現在位置の天気データの取得に失敗しました', '位置情報サービスが有効になっていることを確認してください。');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Call once on mount
+  useEffect(() => {
+    getCurrentLocationWeather();
+
+    // Listen to app resume and refresh location if user enabled useCurrentLocation
+    const handleAppStateChange = async (nextAppState: any) => {
+      if (nextAppState === 'active') {
+        try {
+          const useCurrent = await AsyncStorage.getItem('useCurrentLocation');
+          if (useCurrent && JSON.parse(useCurrent)) {
+            getCurrentLocationWeather();
+          }
+        } catch (e) {
+          console.error('Error checking useCurrentLocation flag:', e);
+        }
       }
     };
 
-    fetchInitialWeather();
+    const subscription = AppState.addEventListener('change', handleAppStateChange as any);
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
-  // When prefecture changes: fetch municipalities and set default municipality only if none selected
+  // Update hero to reflect current time (real-time). Picks the hourly entry matching current hour.
   useEffect(() => {
-    const fetchMunicipalitiesForPref = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const activeArray = (weatherDataList && weatherDataList.length > 0) ? weatherDataList : currentWeather;
+    if (!activeArray || activeArray.length === 0) return;
 
-        const municipalitiesData = await fetchMunicipalities(selectedPrefecture.name);
-        if (municipalitiesData.error) {
-          setError(municipalitiesData.error);
-          setLoading(false);
-          return;
-        }
+    const updateNowIndex = () => {
+      const now = new Date();
+      const hour = now.getHours();
 
-        setMunicipalities(municipalitiesData.municipalities);
+      let idx = activeArray.findIndex(item => {
+        const h = parseInt(item.dateTime.split('時')[0], 10);
+        return h === hour;
+      });
 
-        // Only set selectedMunicipality if user hasn't chosen one or current is not in the new list
-        if (!selectedMunicipality || !municipalitiesData.municipalities.includes(selectedMunicipality)) {
-          setSelectedMunicipality(municipalitiesData.selectedMunicipality || '');
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching municipalities:', err);
-        setError(err instanceof Error ? err.message : '市区町村の取得に失敗しました');
-        setLoading(false);
+      if (idx === -1) {
+        // fallback: find closest hour
+        idx = 0;
+        let minDiff = Infinity;
+        activeArray.forEach((item, i) => {
+          const h = parseInt(item.dateTime.split('時')[0], 10);
+          const diff = Math.min(Math.abs(h - hour), Math.abs(h + 24 - hour), Math.abs(h - (hour + 24)));
+          if (diff < minDiff) { minDiff = diff; idx = i; }
+        });
       }
+
+      setNowIndex(idx);
     };
 
-    fetchMunicipalitiesForPref();
+    updateNowIndex();
+    if (nowIntervalRef.current) {
+      clearInterval(nowIntervalRef.current as any);
+    }
+    nowIntervalRef.current = setInterval(updateNowIndex, 60 * 1000) as unknown as number;
+
+    return () => {
+      if (nowIntervalRef.current) {
+        clearInterval(nowIntervalRef.current as any);
+        nowIntervalRef.current = null;
+      }
+    };
+  }, [currentWeather, weatherDataList]);
+
+
+  const loadMunicipalityData = async () => {
+    if (!selectedPrefecture) return;
+
+    try {
+      const prefName =
+        typeof selectedPrefecture === 'object'
+          ? selectedPrefecture.name
+          : selectedPrefecture;
+
+      if (!prefName) return;
+
+      const fileName = `municipalities_${prefName}.json`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+
+      console.log("📂 Checking:", fileUri);
+
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+
+      // ===============================
+      // ✅ ① JSONキャッシュあり
+      // ===============================
+      if (fileInfo.exists) {
+        const content = await FileSystem.readAsStringAsync(fileUri);
+        const parsedData = JSON.parse(content);
+
+        const data = parsedData.municipalities ?? [];
+
+        setMunicipalities(data);
+        setFilteredMunicipalities(data);
+
+        // 🔥 ここが超重要
+        if (data.length > 0) {
+          setSelectedMunicipality(data[0]);
+        }
+
+        console.log("✅ Loaded from cache");
+        return;
+      }
+
+      // ===============================
+      // ❌ ② API取得
+      // ===============================
+      console.log("⚠ JSON not found. Fetching from J-LIS...");
+
+      const regionInfo = getRegionInfo(prefName);
+      if (!regionInfo?.regionNames) return;
+
+      const city = new City(prefName);
+
+      const municipalities = await city.getMunicipalityDetails(
+        regionInfo.regionNames[0],
+        prefName,
+        regionInfo.regionIds!,
+        regionInfo.regionCodes!,
+      );
+
+      if (!municipalities?.length) {
+        console.warn("No municipalities fetched.");
+        return;
+      }
+
+      setMunicipalities(municipalities);
+      setFilteredMunicipalities(municipalities);
+
+      // 🔥 自動選択（超重要）
+      setSelectedMunicipality(municipalities[0]);
+
+      await city.saveMunicipalityJson(
+        regionInfo.regionNames[0],
+        prefName,
+        regionInfo.regionIds!,
+        regionInfo.regionCodes!
+      );
+
+      console.log("💾 JSON generated and saved.");
+
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log("🛑 Previous municipality fetch aborted");
+      } else {
+        console.error("Failed to load municipality data:", error);
+      }
+    }
+  };
+
+  // 修正後（都道府県が変わった時に、一旦リストを空にしてリセットする）
+  useEffect(() => {
+    setWeatherDataList([]);
+    setSelectedMunicipality(null); // 一旦クリア
+    loadMunicipalityData();
   }, [selectedPrefecture]);
 
-  // When municipality changes: fetch weather for the selected municipality
+  // 2. 検索ロジック（ひらがな・カタカナ・漢字対応）
   useEffect(() => {
-    const fetchWeatherForMunicipality = async () => {
-      if (!selectedMunicipality) return;
-      try {
-        setLoading(true);
-        setLoadingProgress(0);
+    const query = searchQuery.trim();
 
-        // start progress ticker
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-        }
-        progressIntervalRef.current = setInterval(() => {
-          setLoadingProgress(prev => {
-            const next = prev + Math.random() * 10;
-            return next >= 90 ? 90 : Math.round(next);
-          });
-        }, 300) as unknown as number;
-        setError(null);
+    if (!query) {
+      setFilteredMunicipalities(municipalities);
+      return;
+    }
 
-        const coordinates = await fetchCoordinates(selectedMunicipality);
-        const response = await fetchWeatherData(coordinates.lat, coordinates.lon);
+    const toHira = (str: string) =>
+      str.replace(/[\u30a1-\u30f6]/g, (match) =>
+        String.fromCharCode(match.charCodeAt(0) - 0x60)
+      );
 
-        if (!response || !response.hourly || !response.hourly.weather_code) {
-          throw new Error('Invalid weather data structure');
-        }
+    const queryHira = toHira(query);
 
-        const weatherCodeArray = response.hourly.weather_code.map((code) => [code]);
-        const { count } = cudaRidgeDetection(weatherCodeArray, 0.5);
+    const filtered = municipalities.filter((m) => {
+      const name = m.name ?? "";
+      const kana = m.kana ?? "";
 
-        const processedData = response.hourly.time.map((time, index) => {
-          const dateTime = new Date(time);
-          const predictedWeather = predictWeather(
-            response.hourly.weather_code[index],
-            response.hourly.temperature_2m[index],
-            response.hourly.precipitation_probability[index],
-            response.current.relative_humidity_2m,
-            response.hourly.wind_speed_10m[index],
-            count,
-            0.5
-          );
-
-          return {
-            dateIndex: index,
-            date: dateTime.toLocaleDateString('ja-JP', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long',
-            }),
-            dateTime: dateTime.toLocaleTimeString('ja-JP', {
-              hour: 'numeric',
-              minute: 'numeric'
-            }).replace(':', '時') + '分',
-            areaName: selectedMunicipality.toString(),
-            windSpeed: response.hourly.wind_speed_10m[index].toString(),
-            precipitation: response.hourly.precipitation_probability[index],
-            temperature: response.hourly.temperature_2m[index],
-            predictedWeather,
-            prefecture: selectedPrefecture.name,
-            actualWeather: response.hourly.weather_code[index].toString(),
-            isPredictionCorrect: false,
-            latitude: selectedPrefecture.lat,
-            longitude: selectedPrefecture.lng,
-          };
-        });
-
-        setWeatherDataList(processedData);
-
-        // complete progress
-        setLoadingProgress(100);
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-          progressIntervalRef.current = null;
-        }
-
-        // small delay for UX
-        setTimeout(() => setLoading(false), 300);
-      } catch (err) {
-        console.error('Error fetching weather for municipality:', err);
-        setError(err instanceof Error ? err.message : '天気データの取得に失敗しました');
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current as any);
-          progressIntervalRef.current = null;
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchWeatherForMunicipality();
-  }, [selectedMunicipality, selectedPrefecture]);
-
-  useEffect(() => {
-    const getCurrentLocationWeather = async () => {
-      try {
-        setLoading(true);
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('位置情報のアクセスが許可されていません');
-          setLoading(false);
-          return;
-        }
-
-        const location = await Location.getCurrentPositionAsync({});
-        const coordinates = {
-          lat: location.coords.latitude,
-          lon: location.coords.longitude,
-        };
-
-        const municipalitiesData = await fetchMunicipalities(selectedPrefecture.name);
-        if (municipalitiesData.error) {
-          console.error('Error fetching municipalities:', municipalitiesData.error);
-          setLoading(false);
-          return;
-        }
-
-        setMunicipalities(municipalitiesData.municipalities);
-        setSelectedMunicipality(municipalitiesData.selectedMunicipality || '');
-
-        const weatherData = await fetchWeatherData(coordinates.lat.toString(), coordinates.lon.toString());
-
-        if (!weatherData || !weatherData.hourly || !weatherData.hourly.weather_code) {
-          throw new Error('Invalid weather data structure from API');
-        }
-
-        // Create a 2D array of weather codes for ridge detection
-        const weatherCodeArray = weatherData.hourly.weather_code.map((code) => [code]);
-
-        // Use ridge detection to determine if a ridge is detected
-        const { count } = cudaRidgeDetection(weatherCodeArray, 0.5);
-
-        const processedData: WeatherData[] = weatherData.hourly.time.map((time, index) => {
-          const dateTime = new Date(time);
-          const predictedWeather = predictWeather(
-            weatherData.hourly.weather_code[index],
-            weatherData.hourly.temperature_2m[index],
-            weatherData.hourly.precipitation_probability[index],
-            weatherData.current.relative_humidity_2m,
-            weatherData.hourly.wind_speed_10m[index],
-            count,
-            0.5
-          );
-
-          return {
-            dateIndex: index,
-            date: dateTime.toLocaleDateString('ja-JP', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              weekday: 'long',
-            }),
-            dateTime: dateTime.toLocaleTimeString('ja-JP', {
-              hour: 'numeric',
-              minute: 'numeric'
-            }).replace(':', '時') + '分',
-            areaName: selectedMunicipality,
-            windSpeed: weatherData.hourly.wind_speed_10m[index].toString(),
-            precipitation: weatherData.hourly.precipitation_probability[index],
-            temperature: weatherData.hourly.temperature_2m[index],
-            predictedWeather,
-            prefecture: selectedPrefecture.name,
-            actualWeather: weatherData.hourly.weather_code[index].toString(),
-            isPredictionCorrect: false,
-            latitude: coordinates.lat.toString(),
-            longitude: coordinates.lon.toString(),
-          };
-        });
-        setCurrentWeather(processedData);
-      } catch (error) {
-        console.error("現在位置の天気データの取得に失敗しました:", error);
-        Alert.alert('現在位置の天気データの取得に失敗しました', '位置情報サービスが有効になっていることを確認してください。');
-      } finally {
-        setLoading(false);
-      }
-    };
-    getCurrentLocationWeather();
-  }, []);
-
-  useEffect(() => {
-    const filtered = municipalities.filter(municipality => {
-      const kanaQuery = wanakana.toKana(searchQuery);
-      return municipality.includes(searchQuery) || municipality.includes(kanaQuery) || municipality.toLowerCase().includes(searchQuery.toLowerCase());
+      return (
+        name.includes(query) ||
+        kana.includes(query) ||
+        toHira(kana).includes(queryHira)
+      );
     });
-    const sorted = filtered.sort((a, b) => {
-      if (sortOrder === 'asc') {
-        return a.localeCompare(b, 'ja');
-      } else {
-        return b.localeCompare(a, 'ja');
-      }
-    });
+
+    const sorted = filtered.sort((a, b) =>
+      sortOrder === "asc"
+        ? a.name.localeCompare(b.name, "ja")
+        : b.name.localeCompare(a.name, "ja")
+    );
+
     setFilteredMunicipalities(sorted);
-  }, [searchQuery, sortOrder, municipalities]);
+  }, [searchQuery, municipalities, sortOrder]);
+
+  useEffect(() => {
+  municipalityRequestId.current++; // 古いfetch無効化
+  }, [selectedPrefecture]);
+
+
 
   const filteredWeatherData = weatherDataList.filter((data) => {
     const hour = parseInt(data.dateTime.split('時')[0], 10);
@@ -435,13 +631,22 @@ function HomeScreen() {
     }
   });
 
+  const activeArray = (weatherDataList && weatherDataList.length > 0) ? weatherDataList : currentWeather;
+  const heroData = activeArray && activeArray.length > 0 ? (activeArray[nowIndex] ?? activeArray[0]) : null;
+
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.text}>{t('common.loading')}</Text>
+  return (
+    <View style={styles.centered}>
+      <Text style={styles.text}>データを読み込んでいます...</Text>
+      <View style={styles.progressBar}>
+        <View
+          style={[styles.progressFill, { width: `${loadingProgress}%` }]}
+        />
       </View>
-    );
-  }
+
+    </View>
+  )};
+
 
   if (error) {
     return (
@@ -455,21 +660,60 @@ function HomeScreen() {
     <View style={styles.container}>
       {/* Header with Language Switch */}
       <View style={styles.header}>
-        <Text style={styles.appTitle}>🌤️ {t('common.loading').split('...')[0]}</Text>
-        <Button
-          title={language === 'ja' ? '🇯🇵' : '🇬🇧'}
-          onPress={() => {
-            const newLang = language === 'ja' ? 'en' : 'ja';
-            setLanguageState(newLang);
-            setLanguage(newLang);
-          }}
-        />
+        <View style={styles.headerTopRow}>
+          <Text style={styles.appTitle}>天気予報</Text>
+          <Pressable
+            onPress={() => {
+              const newLang = language === 'ja' ? 'en' : 'ja';
+              setLanguageState(newLang);
+              setLanguage(newLang);
+            }}
+            style={({ pressed }: any) => [
+              styles.langButton,
+              pressed && styles.langButtonPressed
+            ]}
+          >
+            <Text style={styles.langButtonText}>{language === 'ja' ? '日本語' : 'English'}</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.headerSubtitle}>{selectedPrefecture.name}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        {/* Current Weather Hero Section */}
+        {heroData && (
+          <View style={styles.heroCard}>
+            <View style={styles.heroContent}>
+              <MaterialCommunityIcons
+                name={getWeatherIcon(heroData.predictedWeather)}
+                size={80}
+                color="#1976D2"
+              />
+              <View style={styles.heroTextSection}>
+                <Text style={styles.heroTemperature}>{heroData.temperature.toFixed(0)}°</Text>
+                <Text style={styles.heroWeatherText}>{heroData.predictedWeather}</Text>
+              </View>
+            </View>
+            <View style={styles.heroFooter}>
+              <View style={styles.heroInfoRow}>
+                <MaterialCommunityIcons name="water-percent" size={18} color="#1976D2" />
+                <Text style={styles.heroInfoText}>{heroData.precipitation}%</Text>
+              </View>
+              <View style={styles.heroInfoRow}>
+                <MaterialCommunityIcons name="weather-windy" size={18} color="#1976D2" />
+                <Text style={styles.heroInfoText}>{heroData.windSpeed} m/s</Text>
+              </View>
+              <View style={styles.heroInfoRow}>
+                <MaterialCommunityIcons name="clock" size={18} color="#1976D2" />
+                <Text style={styles.heroInfoText}>{new Date().toLocaleTimeString('ja-JP', { hour: 'numeric', minute: 'numeric' }).replace(':','時') + '分'}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Filter Card */}
         <View style={styles.filterCard}>
-          <Text style={styles.sectionTitle}>📍 {t('prefecture.label')}</Text>
+          <Text style={styles.sectionTitle}>{t('prefecture.label')}</Text>
           <Picker
             selectedValue={
               Object.entries(PREFECTURE_DATA).find(([code, d]) => d.name === selectedPrefecture.name)?.[0] || Object.keys(PREFECTURE_DATA)[12]
@@ -495,7 +739,7 @@ function HomeScreen() {
             ))}
           </Picker>
 
-          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>🏙️ {t('municipality.label')}</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>{t('municipality.label')}</Text>
           <TextInput
             style={styles.searchInputCompact}
             placeholder={t('municipality.placeholder')}
@@ -507,19 +751,26 @@ function HomeScreen() {
             <Button title={t('municipality.descending')} onPress={() => setSortOrder('desc')} />
           </View>
           <Picker
-            selectedValue={selectedMunicipality}
+            selectedValue={selectedMunicipality?.name || ''}
             onValueChange={(value: string) => {
-              console.log('Municipality Picker onValueChange:', value);
-              setSelectedMunicipality(value);
+              // value は municipality.name が入ってくるように修正
+              const found = filteredMunicipalities.find(m => m.name === value);
+              if (found) {
+                setSelectedMunicipality(found);
+              }
             }}
             style={styles.pickerCompact}
           >
             {filteredMunicipalities.map((municipality, index) => (
-              <Picker.Item key={index} label={municipality} value={municipality} />
+              <Picker.Item
+                key={index}
+                label={municipality.name}
+                value={municipality.name} // ここを kana から name に変更
+              />
             ))}
           </Picker>
 
-          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>⏰ {t('timeFilter.label')}</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 12 }]}>{t('timeFilter.label')}</Text>
           <Picker
             selectedValue={selectedTimeFilter}
             onValueChange={(value: string) => setSelectedTimeFilter(value)}
@@ -531,31 +782,7 @@ function HomeScreen() {
           </Picker>
         </View>
 
-        {/* World Mode Card */}
-        <View style={styles.worldModeCard}>
-          <Button 
-            title={worldMode ? `🌍 ${t('world.modeOn')}` : `🌍 ${t('world.modeOff')}`}
-            onPress={() => setWorldMode(prev => !prev)} 
-          />
-          {worldMode && (
-            <View style={{ marginTop: 12 }}>
-              <TextInput
-                style={styles.searchInputCompact}
-                placeholder={t('world.placeholder')}
-                value={worldCity}
-                onChangeText={setWorldCity}
-              />
-              <Button 
-                title={`🔍 ${t('world.search')}`}
-                onPress={() => {
-                  if (worldCity.trim()) {
-                    setSelectedMunicipality(worldCity.trim());
-                  }
-                }} 
-              />
-            </View>
-          )}
-        </View>
+        {/* World mode feature removed */}
 
         {/* Progress Bar */}
         {loading && (
@@ -573,8 +800,8 @@ function HomeScreen() {
           <View style={styles.weatherCardsContainer}>
             {filteredWeatherData.length > 0 ? (
               filteredWeatherData.map((data, index) => (
-                <WeatherCard 
-                  key={index} 
+                <WeatherCard
+                  key={index}
                   data={data}
                   onPress={(weatherData) => {
                     setSelectedWeather(weatherData);
@@ -618,10 +845,10 @@ function HomeScreen() {
                   <View style={styles.detailCard}>
                     <Text style={styles.detailLabel}>天気</Text>
                     <View style={styles.weatherDetailRow}>
-                      <MaterialCommunityIcons 
-                        name={getWeatherIcon(selectedWeather.predictedWeather)} 
-                        size={48} 
-                        color="#FF9800" 
+                      <MaterialCommunityIcons
+                        name={getWeatherIcon(selectedWeather.predictedWeather)}
+                        size={48}
+                        color="#FF9800"
                       />
                       <Text style={styles.detailLargeValue}>{selectedWeather.predictedWeather}</Text>
                     </View>
@@ -631,6 +858,7 @@ function HomeScreen() {
                     <Text style={styles.detailLabel}>気温</Text>
                     <View style={styles.tempContainer}>
                       <View style={styles.tempBox}>
+                        <MaterialCommunityIcons name="thermometer" size={24} color="#FF5252" />
                         <Text style={styles.tempLabel}>予報気温</Text>
                         <Text style={styles.tempValue}>{selectedWeather.temperature.toFixed(1)}°C</Text>
                       </View>
@@ -642,21 +870,20 @@ function HomeScreen() {
                     <View style={styles.barContainer}>
                       <View style={[styles.barProgressFill, { width: `${selectedWeather.precipitation}%` }]} />
                     </View>
-                    <Text style={styles.detailValue}>{selectedWeather.precipitation}%</Text>
+                    <Text style={styles.detailValue}>{selectedWeather.precipitation}% の確率で雨</Text>
                   </View>
 
                   <View style={styles.detailCard}>
                     <Text style={styles.detailLabel}>風速</Text>
-                    <Text style={styles.detailValue}>{selectedWeather.windSpeed} m/s</Text>
+                    <View style={styles.windSpeedDisplay}>
+                      <MaterialCommunityIcons name="weather-windy" size={24} color="#1976D2" />
+                      <Text style={styles.detailValue}>{selectedWeather.windSpeed} m/s</Text>
+                    </View>
                   </View>
 
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>都道府県</Text>
+                    <Text style={styles.detailLabel}>場所情報</Text>
                     <Text style={styles.detailValue}>{selectedWeather.prefecture}</Text>
-                  </View>
-
-                  <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>市町村</Text>
                     <Text style={styles.detailValue}>{selectedWeather.areaName}</Text>
                   </View>
                 </View>
@@ -672,21 +899,99 @@ function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F7FA',
   },
   header: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 16,
+    backgroundColor: '#1976D2',
+    paddingVertical: 12,
     paddingHorizontal: 16,
+    paddingTop: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 0,
+    marginBottom: 8,
   },
   appTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: 'white',
+    letterSpacing: 0.3,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+  },
+  langButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  langButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  langButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  heroCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 12,
+    marginVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 16,
+  },
+  heroTextSection: {
+    alignItems: 'flex-start',
+  },
+  heroTemperature: {
+    fontSize: 54,
+    fontWeight: '800',
+    color: '#1976D2',
+    lineHeight: 58,
+  },
+  heroWeatherText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#424242',
+    marginTop: 4,
+  },
+  heroFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+  },
+  heroInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#546E7A',
   },
   centered: {
     flex: 1,
@@ -711,53 +1016,63 @@ const styles = StyleSheet.create({
   filterCard: {
     backgroundColor: 'white',
     marginHorizontal: 12,
-    marginVertical: 8,
-    padding: 16,
-    borderRadius: 8,
+    marginVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+    borderTopWidth: 3,
+    borderTopColor: '#1976D2',
   },
   worldModeCard: {
     backgroundColor: 'white',
     marginHorizontal: 12,
-    marginVertical: 8,
-    padding: 14,
-    borderRadius: 8,
+    marginVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 14,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+    borderTopWidth: 3,
+    borderTopColor: '#F57C00',
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2196F3',
-    marginBottom: 10,
-    marginTop: 0,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1976D2',
+    marginBottom: 12,
+    marginTop: 4,
+    letterSpacing: 0.2,
   },
   pickerCompact: {
     height: 50,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
-    marginBottom: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   searchInputCompact: {
-    height: 44,
-    backgroundColor: '#f5f5f5',
-    borderColor: '#ddd',
+    height: 48,
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
     borderWidth: 1,
-    borderRadius: 6,
-    marginBottom: 10,
-    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    paddingHorizontal: 14,
     fontSize: 16,
+    color: '#424242',
   },
   sortButtonsCompact: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 12,
   },
   progressContainer: {
     paddingHorizontal: 12,
@@ -786,12 +1101,15 @@ const styles = StyleSheet.create({
   },
   weatherCardsContainer: {
     backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
     elevation: 3,
+    marginHorizontal: 12,
+    marginVertical: 8,
   },
   // Legacy styles (kept for compatibility)
   label: {
@@ -856,25 +1174,25 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 20,
-    paddingHorizontal: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 24,
+    paddingHorizontal: 18,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    marginBottom: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: '#E8E8E8',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1976D2',
     flex: 1,
   },
   closeButtonContainer: {
@@ -884,30 +1202,30 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   detailCard: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 14,
+    borderLeftWidth: 5,
+    borderLeftColor: '#1976D2',
   },
   detailLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2196F3',
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1565C0',
+    marginBottom: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   detailValue: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: 17,
+    color: '#1A237E',
+    fontWeight: '600',
   },
   detailLargeValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1976D2',
     marginLeft: 16,
   },
   weatherDetailRow: {
@@ -920,31 +1238,41 @@ const styles = StyleSheet.create({
   },
   tempBox: {
     backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#E0E8FF',
   },
   tempLabel: {
     fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+    color: '#546E7A',
+    marginBottom: 8,
+    marginTop: 4,
+    fontWeight: '500',
   },
   tempValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#FF5252',
   },
   barContainer: {
-    height: 20,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
+    height: 24,
+    backgroundColor: '#E8EAED',
+    borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   barProgressFill: {
     height: '100%',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#42A5F5',
+  },
+  windSpeedDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
   },
 });
 

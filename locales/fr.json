@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "Chargement des données...",
+    "error": "Une erreur s'est produite",
+    "success": "Succès",
+    "select": "Sélectionner",
+    "search": "Rechercher",
+    "all": "Tous"
+  },
+  "settings": {
+    "24h": "Format 24 heures",
+    "notifications": "Notifications",
+    "use_location": "Utiliser la position actuelle",
+    "test_notify": "Envoyer une notification de test",
+    "save": "Enregistrer les paramètres",
+    "saved": "Paramètres enregistrés avec succès !"
+  },
+  "prefecture": {
+    "label": "Sélectionner une préfecture:",
+    "error": "Erreur lors de la récupération des municipalités"
+  },
+  "municipality": {
+    "label": "Sélectionner une municipalité:",
+    "placeholder": "Rechercher une municipalité",
+    "notFound": "Impossible de sélectionner une municipalité",
+    "ascending": "Ascendant",
+    "descending": "Descendant"
+  },
+  "timeFilter": {
+    "label": "Sélectionner la période:",
+    "all": "Tous",
+    "morning": "Matin (6:00〜12:00)",
+    "afternoon": "Après-midi (12:00〜18:00)",
+    "night": "Nuit (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "Aucune prévision météorologique disponible pour la période sélectionnée.",
+    "fetchError": "Erreur lors de la récupération des données météorologiques",
+    "locationError": "L'accès à la localisation n'est pas autorisé",
+    "locationPermissionError": "Assurez-vous que les services de localisation sont activés."
+  },
+  "world": {
+    "modeOn": "Mode Mondial: ACTIVÉ",
+    "modeOff": "Mode Mondial: DÉSACTIVÉ",
+    "placeholder": "Entrez le nom de la ville (ex: Londres)",
+    "search": "Rechercher la météo mondiale",
+    "cities": {
+      "newyork": "New York",
+      "london": "Londres",
+      "tokyo": "Tokyo",
+      "paris": "Paris",
+      "sydney": "Sydney",
+      "dubai": "Dubaï",
+      "singapore": "Singapour",
+      "bangkok": "Bangkok",
+      "seoul": "Séoul",
+      "barcelona": "Barcelone",
+      "toronto": "Toronto",
+      "berlin": "Berlin"
+    },
+    "countries": {
+      "usa": "États-Unis",
+      "uk": "Royaume-Uni",
+      "japan": "Japon",
+      "france": "France",
+      "australia": "Australie",
+      "uae": "Émirats Arabes Unis",
+      "singapore": "Singapour",
+      "thailand": "Thaïlande",
+      "southkorea": "Corée du Sud",
+      "spain": "Espagne",
+      "canada": "Canada",
+      "germany": "Allemagne"
+    }
+  },
+  "language": {
+    "label": "Langue",
+    "japanese": "日本語",
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
+  }
+}

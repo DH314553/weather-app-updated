@@ -60,37 +60,35 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ data, onPress }) => {
       ]}
       onPress={() => onPress?.(data)}
     >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.areaName}>{data.areaName}</Text>
-          <Text style={styles.date}>{data.date}</Text>
-          <Text style={styles.dateTime}>{data.dateTime}</Text>
-        </View>
-        <View style={styles.textRight}>
-          <MaterialCommunityIcons name={getWeatherIcon(data.predictedWeather)} size={32} color="#333" />
-          <Text style={styles.weatherText}>{data.predictedWeather}</Text>
+      {/* Time Header */}
+      <View style={styles.timeSection}>
+        <Text style={styles.dateTime}>{data.dateTime}</Text>
+        <Text style={styles.date}>{data.date}</Text>
+      </View>
+
+      {/* Weather Icon and Temp */}
+      <View style={styles.mainContent}>
+        <MaterialCommunityIcons 
+          name={getWeatherIcon(data.predictedWeather)} 
+          size={44} 
+          color="#1976D2" 
+        />
+        <View style={styles.tempSection}>
+          <Text style={styles.temperature}>{data.temperature.toFixed(0)}°C</Text>
+          <Text style={styles.weatherInfo}>{data.predictedWeather}</Text>
         </View>
       </View>
-      
-      <View style={styles.grid}>
-        <View style={styles.row}>
-          <MaterialCommunityIcons name="thermometer" size={20} color="red" />
-          <Text style={styles.text}>{data.temperature.toFixed(1)}°C</Text>
+
+      {/* Bottom Stats */}
+      <View style={styles.statsSection}>
+        <View style={styles.stat}>
+          <MaterialCommunityIcons name="water-percent" size={14} color="#1976D2" />
+          <Text style={styles.statValue}>{data.precipitation}%</Text>
         </View>
-        
-        <View style={styles.row}>
-          <MaterialCommunityIcons name="weather-windy" size={20} color="blue" />
-          <Text style={styles.text}>{data.windSpeed} m/s</Text>
-        </View>
-        
-        <View style={styles.row}>
-          <MaterialCommunityIcons name="weather-rainy" size={20} color="blue" />
-          <Text style={styles.text}>{data.precipitation}%</Text>
-        </View>
-        
-        <View style={styles.row}>
-          <MaterialCommunityIcons name="cloud" size={20} color="gray" />
-          <Text style={styles.text}>{data.prefecture}</Text>
+        <View style={styles.divider} />
+        <View style={styles.stat}>
+          <MaterialCommunityIcons name="weather-windy" size={14} color="#1976D2" />
+          <Text style={styles.statValue}>{data.windSpeed}</Text>
         </View>
       </View>
     </Pressable>
@@ -100,61 +98,82 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ data, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 4,
-    marginBottom: 16,
+    elevation: 2,
+    marginBottom: 8,
+    marginHorizontal: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1976D2',
   },
   cardPressed: {
-    backgroundColor: '#f0f4ff',
-    elevation: 6,
+    backgroundColor: '#F5F9FF',
+    elevation: 4,
+    shadowOpacity: 0.15,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  areaName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+  timeSection: {
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECEFF1',
+    paddingBottom: 8,
   },
   date: {
     fontSize: 12,
-    color: '#666',
+    color: '#90A4AE',
+    marginTop: 2,
   },
   dateTime: {
     fontSize: 15,
-    color: '#666',
+    fontWeight: '700',
+    color: '#1976D2',
   },
-  textRight: {
-    alignItems: 'center',
-  },
-  weatherText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 4,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  row: {
+  mainContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '48%',
-    marginBottom: 8,
+    marginBottom: 10,
+    gap: 10,
   },
-  text: {
-    fontSize: 14,
-    color: '#333',
-    marginLeft: 8,
+  tempSection: {
+    flex: 1,
+  },
+  temperature: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1976D2',
+  },
+  weatherInfo: {
+    fontSize: 13,
+    color: '#546E7A',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  statsSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#ECEFF1',
+  },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 12,
+    color: '#37474F',
+    fontWeight: '600',
+  },
+  divider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#E0E0E0',
   },
 });
 

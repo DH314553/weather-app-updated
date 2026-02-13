@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "Cargando datos...",
+    "error": "Ocurrió un error",
+    "success": "Éxito",
+    "select": "Seleccionar",
+    "search": "Buscar",
+    "all": "Todos"
+  },
+  "settings": {
+    "24h": "Formato de 24 horas",
+    "notifications": "Notificaciones",
+    "use_location": "Usar ubicación actual",
+    "test_notify": "Enviar notificación de prueba",
+    "save": "Guardar ajustes",
+    "saved": "¡Ajustes guardados correctamente!"
+  },
+  "prefecture": {
+    "label": "Seleccionar prefectura:",
+    "error": "Error al obtener municipios"
+  },
+  "municipality": {
+    "label": "Seleccionar municipio:",
+    "placeholder": "Buscar municipio",
+    "notFound": "No se puede seleccionar municipio",
+    "ascending": "Ascendente",
+    "descending": "Descendente"
+  },
+  "timeFilter": {
+    "label": "Seleccionar período de tiempo:",
+    "all": "Todos",
+    "morning": "Mañana (6:00〜12:00)",
+    "afternoon": "Tarde (12:00〜18:00)",
+    "night": "Noche (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "No hay pronóstico del tiempo disponible para el período seleccionado.",
+    "fetchError": "Error al obtener datos del tiempo",
+    "locationError": "El acceso a la ubicación no está permitido",
+    "locationPermissionError": "Asegúrese de que los servicios de ubicación estén habilitados."
+  },
+  "world": {
+    "modeOn": "Modo Mundial: ACTIVADO",
+    "modeOff": "Modo Mundial: DESACTIVADO",
+    "placeholder": "Ingrese nombre de ciudad (ej: Londres)",
+    "search": "Buscar el tiempo mundial",
+    "cities": {
+      "newyork": "Nueva York",
+      "london": "Londres",
+      "tokyo": "Tokio",
+      "paris": "París",
+      "sydney": "Sídney",
+      "dubai": "Dubái",
+      "singapore": "Singapur",
+      "bangkok": "Bangkok",
+      "seoul": "Seúl",
+      "barcelona": "Barcelona",
+      "toronto": "Toronto",
+      "berlin": "Berlín"
+    },
+    "countries": {
+      "usa": "Estados Unidos",
+      "uk": "Reino Unido",
+      "japan": "Japón",
+      "france": "Francia",
+      "australia": "Australia",
+      "uae": "Emiratos Árabes Unidos",
+      "singapore": "Singapur",
+      "thailand": "Tailandia",
+      "southkorea": "Corea del Sur",
+      "spain": "España",
+      "canada": "Canadá",
+      "germany": "Alemania"
+    }
+  },
+  "language": {
+    "label": "Idioma",
+    "japanese": "日本語",
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
+  }
+}

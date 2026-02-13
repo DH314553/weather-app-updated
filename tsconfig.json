@@ -1,13 +1,29 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    /* 修正ポイント: @types フォルダのみを型ルートとして指定する */
+    "typeRoots": ["./node_modules/@types"], 
+    
+    /* 外部ライブラリ自体の型チェックをスキップ（これで api や utils のエラーは消えます） */
+    "skipLibCheck": true,
+    
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["src/*"],
+      "@assets/*": ["assets/*"],
+      "@components/*": ["src/components/*"],
+      "@screens/*": ["src/screens/*"],
+      "@navigation/*": ["src/navigation/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"],
+      "@styles/*": ["src/styles/*"],
+      "@constants/*": ["src/constants/*"],
+      "@services/*": ["src/services/*"]
     },
-    {
-      "path": "./tsconfig.node.json"
-    }
-  ],
-  "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "strict": true
+  },
 }

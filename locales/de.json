@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "Daten werden geladen...",
+    "error": "Ein Fehler ist aufgetreten",
+    "success": "Erfolg",
+    "select": "Auswählen",
+    "search": "Suche",
+    "all": "Alle"
+  },
+  "settings": {
+    "24h": "24-Stunden-Format",
+    "notifications": "Benachrichtigungen",
+    "use_location": "Aktuellen Standort verwenden",
+    "test_notify": "Test-Benachrichtigung senden",
+    "save": "Einstellungen speichern",
+    "saved": "Einstellungen erfolgreich gespeichert!"
+  },
+  "prefecture": {
+    "label": "Präfektur auswählen:",
+    "error": "Fehler beim Abrufen von Gemeinden"
+  },
+  "municipality": {
+    "label": "Gemeinde auswählen:",
+    "placeholder": "Gemeinde durchsuchen",
+    "notFound": "Gemeinde kann nicht ausgewählt werden",
+    "ascending": "Aufsteigend",
+    "descending": "Absteigend"
+  },
+  "timeFilter": {
+    "label": "Zeitraum auswählen:",
+    "all": "Alle",
+    "morning": "Morgen (6:00〜12:00)",
+    "afternoon": "Nachmittag (12:00〜18:00)",
+    "night": "Nacht (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "Für den gewählten Zeitraum sind keine Wettervorhersagen verfügbar.",
+    "fetchError": "Fehler beim Abrufen von Wetterdaten",
+    "locationError": "Der Standortzugriff ist nicht erlaubt",
+    "locationPermissionError": "Bitte stellen Sie sicher, dass Standortdienste aktiviert sind."
+  },
+  "world": {
+    "modeOn": "Weltmodus: AKTIVIERT",
+    "modeOff": "Weltmodus: DEAKTIVIERT",
+    "placeholder": "Stadtnamen eingeben (z.B. London)",
+    "search": "Weltwetter durchsuchen",
+    "cities": {
+      "newyork": "New York",
+      "london": "London",
+      "tokyo": "Tokio",
+      "paris": "Paris",
+      "sydney": "Sydney",
+      "dubai": "Dubai",
+      "singapore": "Singapur",
+      "bangkok": "Bangkok",
+      "seoul": "Seoul",
+      "barcelona": "Barcelona",
+      "toronto": "Toronto",
+      "berlin": "Berlin"
+    },
+    "countries": {
+      "usa": "Vereinigte Staaten",
+      "uk": "Vereinigtes Königreich",
+      "japan": "Japan",
+      "france": "Frankreich",
+      "australia": "Australien",
+      "uae": "Vereinigte Arabische Emirate",
+      "singapore": "Singapur",
+      "thailand": "Thailand",
+      "southkorea": "Südkorea",
+      "spain": "Spanien",
+      "canada": "Kanada",
+      "germany": "Deutschland"
+    }
+  },
+  "language": {
+    "label": "Sprache",
+    "japanese": "日本語",
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
+  }
+}

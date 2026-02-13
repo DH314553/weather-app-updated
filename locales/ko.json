@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "데이터 로드 중...",
+    "error": "오류가 발생했습니다",
+    "success": "성공",
+    "select": "선택",
+    "search": "검색",
+    "all": "모두"
+  },
+  "settings": {
+    "24h": "24시간 형식",
+    "notifications": "알림 설정",
+    "use_location": "현재 위치 사용",
+    "test_notify": "테스트 알림 보내기",
+    "save": "설정 저장",
+    "saved": "설정이 성공적으로 저장되었습니다!"
+  },
+  "prefecture": {
+    "label": "도도부현 선택:",
+    "error": "시정촌 가져오기 실패"
+  },
+  "municipality": {
+    "label": "시정촌 선택:",
+    "placeholder": "시정촌 검색",
+    "notFound": "시정촌을 선택할 수 없습니다",
+    "ascending": "오름차순",
+    "descending": "내림차순"
+  },
+  "timeFilter": {
+    "label": "시간대 선택:",
+    "all": "모두",
+    "morning": "아침 (6:00〜12:00)",
+    "afternoon": "오후 (12:00〜18:00)",
+    "night": "밤 (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "선택된 시간대의 날씨 예보가 없습니다.",
+    "fetchError": "날씨 데이터 가져오기 실패",
+    "locationError": "위치 액세스가 허용되지 않음",
+    "locationPermissionError": "위치 서비스가 활성화되어 있는지 확인하세요."
+  },
+  "world": {
+    "modeOn": "세계 모드: 켜짐",
+    "modeOff": "세계 모드: 꺼짐",
+    "placeholder": "도시명 입력 (예: 런던)",
+    "search": "세계 날씨 검색",
+    "cities": {
+      "newyork": "뉴욕",
+      "london": "런던",
+      "tokyo": "도쿄",
+      "paris": "파리",
+      "sydney": "시드니",
+      "dubai": "두바이",
+      "singapore": "싱가포르",
+      "bangkok": "방콕",
+      "seoul": "서울",
+      "barcelona": "바르셀로나",
+      "toronto": "토론토",
+      "berlin": "베를린"
+    },
+    "countries": {
+      "usa": "미국",
+      "uk": "영국",
+      "japan": "일본",
+      "france": "프랑스",
+      "australia": "호주",
+      "uae": "아랍에미리트",
+      "singapore": "싱가포르",
+      "thailand": "태국",
+      "southkorea": "대한민국",
+      "spain": "스페인",
+      "canada": "캐나다",
+      "germany": "독일"
+    }
+  },
+  "language": {
+    "label": "언어",
+    "japanese": "日本語",
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
+  }
+}

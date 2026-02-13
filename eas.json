@@ -1,6 +1,7 @@
 {
   "cli": {
-      "version": ">=0.45.0"
+    "version": ">=0.45.0",
+    "appVersionSource": "local"
   },
   "build": {
     "preview": {
@@ -8,19 +9,13 @@
       "android": {
         "buildType": "apk",
         "credentialsSource": "remote"
-      },
-      "ios": {
-        "simulator": true
       }
     },
     "production": {
-        "distribution": "internal",
+      "distribution": "store",
       "android": {
-        "buildType": "apk",
+        "buildType": "app-bundle",
         "credentialsSource": "remote"
-      },
-      "ios": {
-        "simulator": true
       }
     }
   }

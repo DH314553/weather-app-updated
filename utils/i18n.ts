@@ -1,8 +1,13 @@
 import * as Localization from 'expo-localization';
 import ja from '../locales/ja.json';
 import en from '../locales/en.json';
+import es from '../locales/es.json';
+import fr from '../locales/fr.json';
+import de from '../locales/de.json';
+import zh from '../locales/zh.json';
+import ko from '../locales/ko.json';
 
-type Language = 'ja' | 'en';
+type Language = 'ja' | 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ko';
 
 interface Translations {
   [key: string]: any;
@@ -11,6 +16,11 @@ interface Translations {
 const translations: { [key in Language]: Translations } = {
   ja,
   en,
+  es,
+  fr,
+  de,
+  zh,
+  ko,
 };
 
 // Detect system language
@@ -20,9 +30,19 @@ const getSystemLanguage = (): Language => {
     return 'ja';
   }
   const langCode = locales[0]?.languageCode;
-  if (langCode === 'ja') return 'ja';
-  if (langCode === 'en') return 'en';
-  return 'ja';
+  
+  // Map language codes to supported languages
+  const languageMap: { [key: string]: Language } = {
+    'ja': 'ja',
+    'en': 'en',
+    'es': 'es',
+    'fr': 'fr',
+    'de': 'de',
+    'zh': 'zh',
+    'ko': 'ko',
+  };
+  
+  return (langCode && languageMap[langCode]) || 'ja';
 };
 
 let currentLanguage: Language = getSystemLanguage();

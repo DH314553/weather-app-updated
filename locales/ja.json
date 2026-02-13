@@ -2,9 +2,18 @@
   "common": {
     "loading": "データを読み込んでいます...",
     "error": "エラーが発生しました",
+    "success": "成功",
     "select": "選択",
     "search": "検索",
     "all": "すべて"
+  },
+  "settings": {
+    "24h": "24時間表記",
+    "notifications": "通知設定",
+    "use_location": "現在地を使用する",
+    "test_notify": "テスト通知を送信",
+    "save": "設定を保存",
+    "saved": "設定を保存しました！"
   },
   "prefecture": {
     "label": "都道府県を選択:",
@@ -34,11 +43,44 @@
     "modeOn": "世界モード: ON",
     "modeOff": "世界モード: OFF",
     "placeholder": "都市名を入力（例: London）",
-    "search": "世界の天気を検索"
+    "search": "世界の天気を検索",
+    "cities": {
+      "newyork": "ニューヨーク",
+      "london": "ロンドン",
+      "tokyo": "東京",
+      "paris": "パリ",
+      "sydney": "シドニー",
+      "dubai": "ドバイ",
+      "singapore": "シンガポール",
+      "bangkok": "バンコク",
+      "seoul": "ソウル",
+      "barcelona": "バルセロナ",
+      "toronto": "トロント",
+      "berlin": "ベルリン"
+    },
+    "countries": {
+      "usa": "アメリカ",
+      "uk": "イギリス",
+      "japan": "日本",
+      "france": "フランス",
+      "australia": "オーストラリア",
+      "uae": "アラブ首長国連邦",
+      "singapore": "シンガポール",
+      "thailand": "タイ",
+      "southkorea": "韓国",
+      "spain": "スペイン",
+      "canada": "カナダ",
+      "germany": "ドイツ"
+    }
   },
   "language": {
-    "label": "言語: ",
+    "label": "言語",
     "japanese": "日本語",
-    "english": "English"
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
   }
 }

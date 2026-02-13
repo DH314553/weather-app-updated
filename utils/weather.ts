@@ -51,96 +51,167 @@ const areaKanjiToRomaji = {
   '沖縄県内市町村': { region_id: [68], region_name: 'kyuusyuu', region_code: [87] }
 };
 
+
+const transformPrefecture = (prefecture: string) => {
+  // ローマ字→日本語都道府県名マップ
+  const romajiToKanji: { [key: string]: string } = {
+    'Hokkaido': '北海道', 'Aomori': '青森県', 'Iwate': '岩手県', 'Miyagi': '宮城県', 'Akita': '秋田県',
+    'Yamagata': '山形県', 'Fukushima': '福島県', 'Ibaraki': '茨城県', 'Tochigi': '栃木県', 'Gunma': '群馬県',
+    'Saitama': '埼玉県', 'Chiba': '千葉県', 'Tokyo': '東京都', 'Kanagawa': '神奈川県', 'Niigata': '新潟県',
+    'Toyama': '富山県', 'Ishikawa': '石川県', 'Fukui': '福井県', 'Yamanashi': '山梨県', 'Nagano': '長野県',
+    'Gifu': '岐阜県', 'Shizuoka': '静岡県', 'Aichi': '愛知県', 'Mie': '三重県', 'Shiga': '滋賀県',
+    'Kyoto': '京都府', 'Osaka': '大阪府', 'Hyogo': '兵庫県', 'Nara': '奈良県', 'Wakayama': '和歌山県',
+    'Tottori': '鳥取県', 'Shimane': '島根県', 'Okayama': '岡山県', 'Hiroshima': '広島県', 'Yamaguchi': '山口県',
+    'Tokushima': '徳島県', 'Kagawa': '香川県', 'Ehime': '愛媛県', 'Kochi': '高知県', 'Fukuoka': '福岡県',
+    'Saga': '佐賀県', 'Nagasaki': '長崎県', 'Kumamoto': '熊本県', 'Oita': '大分県', 'Miyazaki': '宮崎県',
+    'Kagoshima': '鹿児島県', 'Okinawa': '沖縄県'
+  };
+  // areaKanjiToRomajiのキーに必ず一致するように正規化
+  const specialMap: { [key: string]: string } = {
+    '栃木県': '栃木県内市町',
+    '石川県': '石川県内市町',
+    '福井県': '福井県内市町',
+    '静岡県': '静岡県内市町',
+    '三重県': '三重県内市町',
+    '滋賀県': '滋賀県内市町',
+    '広島県': '広島県内市町',
+    '山口県': '山口県内市町',
+    '香川県': '香川県内市町',
+    '愛媛県': '愛媛県内市町',
+    '佐賀県': '佐賀県内市町',
+    '長崎県': '長崎県内市町',
+    '兵庫県': '兵庫県内市町',
+  };
+  let pref = prefecture;
+  if (romajiToKanji[prefecture]) pref = romajiToKanji[prefecture];
+  if (specialMap[pref]) return specialMap[pref];
+  if (pref.endsWith('県')) return pref.replace('県', '県内市町村');
+  if (pref.endsWith('道')) return pref.replace('道', '道内市町村');
+  if (pref.endsWith('府')) return pref.replace('府', '府内市町村');
+  if (pref.endsWith('都')) return pref.replace('都', '都内市町村');
+  return pref;
+};
+
+/* =========================================================
+   ✅ 簡易メモリキャッシュ（座標API制限回避）
+========================================================= */
+const coordinateCache: Record<string, { lat: string; lon: string }> = {};
+
+/* =========================================================
+   天気取得（安定版）
+========================================================= */
 export const fetchWeatherData = async (latitude: string, longitude: string): Promise<WeatherResponse> => {
-  try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=Asia%2FTokyo`;
-    
-    console.log(`Fetching weather data from: ${url.substring(0, 100)}...`);
-    
-    const response = await fetch(url);
-
-    console.log(`Weather API response status: ${response.status} ${response.statusText}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Weather API error response: ${errorText}`);
-      throw new Error(`Weather API error: Status ${response.status} - ${errorText || response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    console.log('Weather data received:', Object.keys(data));
-    
-    if (!data || !data.current || !data.hourly || !data.daily) {
-      console.error('Missing required fields:', { 
-        hasCurrent: !!data?.current, 
-        hasHourly: !!data?.hourly, 
-        hasDaily: !!data?.daily 
-      });
-      throw new Error('Invalid weather data structure from API');
-    }
-
-    return data as WeatherResponse;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('fetchWeatherData error:', errorMessage);
-    throw new Error(`天気データの取得に失敗しました: ${errorMessage}`);
-  }
+  const response = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,wind_speed_10m,precipitation_probability,relative_humidity_2m,temperature_80m,weather_code&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=Asia%2FTokyo`
+  );
+  return response.json();
 };
 
 export const fetchCoordinates = async (city: string): Promise<{ lat: string, lon: string }> => {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}`;
+  // 1. キャッシュチェック
+  if (coordinateCache[city]) {
+    return coordinateCache[city];
+  }
+
+  // 地名を正規化（市・町・村を除去）
+  const normalizedJapaneseCity = normalizeCityName(city);
+
+  // ローマ字に変換 (例: "札幌" -> "sapporo")
+  const romanizedCity = toRomaji(normalizedJapaneseCity);
+
+  // URLエンコードを施してリクエスト
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(romanizedCity)}&count=1&language=en&format=json`;
 
   try {
-    console.log(`Fetching coordinates for city: ${city}`);
-    
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'weatherApp/1.0 (daisaku.another31469@gmail.com)',
-      },
-    });
+    console.log(`Fetching coordinates for: ${romanizedCity} (${city})`);
+    const response = await fetch(url);
 
-    const textResponse = await response.text(); // JSONでなくてもエラーメッセージを取得できる
+    if (!response.ok) throw new Error(`Status: ${response.status}`);
 
-    if (!response.ok) {
-      console.error(`Error response: ${textResponse}`);
-      throw new Error(`Failed to fetch coordinates: ${response.statusText}`);
+    const data = await response.json();
+
+    if (!data.results || data.results.length === 0) {
+      // ローマ字でダメなら日本語で再試行するフォールバックを入れるとより親切です
+      throw new Error(`No coordinates found for: ${city}`);
     }
 
-    try {
-      const data = JSON.parse(textResponse);
-      if (data.length === 0) {
-        throw new Error(`No coordinates found for city: ${city}`);
-      }
-      return { lat: data[0].lat, lon: data[0].lon };
-    } catch (parseError) {
-      console.error(`JSON parsing error: ${textResponse}`);
-      throw new Error('Received non-JSON response from the API');
-    }
+    const result = {
+      lat: data.results[0].latitude.toString(),
+      lon: data.results[0].longitude.toString(),
+    };
+
+    coordinateCache[city] = result;
+    return result;
   } catch (error) {
-    console.error('Error fetching coordinates:', error);
-    throw new Error('Unable to fetch coordinates. Please try again later.');
+    console.error('Error:', error);
+    throw new Error('座標の取得に失敗しました。');
   }
 };
 
-const transformPrefecture = (prefecture: string) => {
-    if (prefecture.includes('県')) {
-      if (['栃木', '石川', '福井', '静岡', '三重', '滋賀', '広島', '山口', '香川', '愛媛', '佐賀', '長崎'].some(substring => prefecture.includes(substring))) {
-        return prefecture.replace('県', '県内市町');
-      }
-      return prefecture.replace('県', '県内市町村');
-    } else if (prefecture.includes('道')) {
-      return prefecture.replace('道', '道内市町村');
-    } else if (prefecture.includes('府')) {
-      return prefecture.replace('府', '府内市町村');
-    } else if (prefecture.includes('都')) {
-      return prefecture.replace('都', '都内市町村');
-    } else {
-      return prefecture;
-    }
-};
+/**
+ * ひらがな・カタカナをローマ字（ヘボン式）に変換する簡易関数
+ */
+function toRomaji(str: string): string {
+  const kanaMap: { [key: string]: string } = {
+    'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
+    'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
+    'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
+    'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
+    'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
+    'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
+    'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
+    'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
+    'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro',
+    'わ': 'wa', 'を': 'o', 'ん': 'n', 'が': 'ga', 'ぎ': 'gi', 'ぐ': 'gu', 'げ': 'ge', 'ご': 'go',
+    'ざ': 'za', 'じ': 'ji', 'ず': 'zu', 'ぜ': 'ze', 'ぞ': 'zo',
+    'だ': 'da', 'ぢ': 'ji', 'づ': 'zu', 'で': 'de', 'ど': 'do',
+    'ば': 'ba', 'び': 'bi', 'ぶ': 'bu', 'べ': 'be', 'ぼ': 'bo',
+    'ぱ': 'pa', 'ぴ': 'pi', 'ぷ': 'pu', 'ぺ': 'pe', 'ぽ': 'po',
+    // 必要に応じて 濁点・半濁点などを追加
+  };
+  // 1. カタカナをひらがなに変換
+  let text = kana.replace(/[\u30a1-\u30f6]/g, (match) =>
+    String.fromCharCode(match.charCodeAt(0) - 0x60)
+  );
 
-const getRegionInfo = (prefectureName: string) => {
+  // 2. 「っ」の処理（後ろの文字の子音を重ねる）
+  // 例: 「さっぽろ」 -> s + sapporo
+  text = text.replace(/っ([あ-んa-z])/g, (match, nextChar) => {
+    const nextRomaji = kanaMap[nextChar] || nextChar;
+    return nextRomaji.charAt(0) + nextRomaji;
+  });
+
+  // 3. 特殊な濁点・結合文字の個別置換
+  const specials: { [key: string]: string } = {
+    'ゅ゙': 'yu', // 濁点付きなどは標準音へ
+    'ゔ': 'vu',
+    'ー': '',    // 長音記号は検索に不要なので消す
+  };
+
+  // 4. 1文字ずつ変換
+  return text.split('').map(char => {
+    if (specials[char]) return specials[char];
+    return kanaMap[char] || char;
+  }).join('');
+}
+
+/**
+ * 住所文字列から市区町村名のみを抽出し、末尾の接尾辞を削除する
+ * 例: "札幌市北区" -> "札幌"
+ * 例: "余市町" -> "余市"
+ */
+function normalizeCityName(city: string): string {
+  if (!city) return '';
+
+  const cityMatch = city.match(/(.+?)し/);
+  if (cityMatch) {
+    return cityMatch[1];
+  }
+
+  return city.replace(/(く|まち|ちょう|むら|そん)$/, '');
+}
+
+export const getRegionInfo = (prefectureName: string) => {
   const regionIds: number[] = [];
   const regionCodes: number[] = [];
   const regionNames: string[] = [];
@@ -158,46 +229,45 @@ const getRegionInfo = (prefectureName: string) => {
   }
 }
 
-export const fetchMunicipalities = async (selectedPrefecture: string): Promise<{ municipalities: string[], selectedMunicipality: string | null, error: string | null }> => {
+/* =========================================================
+   市区町村取得（安全版）
+========================================================= */
+export const fetchMunicipalities = async (
+  selectedPrefecture: string
+): Promise<{
+  municipalities: string[];
+  selectedMunicipality: string | null;
+  error: string | null;
+}> => {
   try {
-    console.log('fetchMunicipalities called with:', selectedPrefecture);
-    
     const city = new City(selectedPrefecture);
-    const transformedPrefecture = transformPrefecture(selectedPrefecture);
-    console.log('Transformed Prefecture:', transformedPrefecture);
-    
-    const { regionIds, regionCodes, regionNames } = getRegionInfo(transformedPrefecture);
-    console.log('Region Info:', { regionIds, regionCodes, regionNames });
+    const regionInfo = getRegionInfo(
+      transformPrefecture(selectedPrefecture)
+    );
 
-    if (regionNames && regionIds && regionCodes) {
-      console.log('Fetching municipalities with params:', { regionNames: regionNames.toString(), selectedPrefecture, regionIds, regionCodes });
-      
-      const fetchedMunicipalities = await city.getMunicipalities(regionNames.toString(), selectedPrefecture, regionIds, regionCodes);
-      console.log('Fetched Municipalities:', fetchedMunicipalities);
-      console.log('Fetched Municipalities type:', typeof fetchedMunicipalities, Array.isArray(fetchedMunicipalities));
-      
-      // API から取得された市区町村リストをそのまま使用（フィルタリング不要）
-      const municipalities = Array.isArray(fetchedMunicipalities) ? fetchedMunicipalities : [];
-      console.log('Municipalities:', municipalities);
-      
-      const selectedMunicipality = municipalities.length > 0 ? municipalities[0] : null;
-      console.log('Selected Municipality:', selectedMunicipality);
-
-      return {
-        municipalities: municipalities,
-        selectedMunicipality: selectedMunicipality,
-        error: null
-      };
-    } else {
-      console.error('Region info is null');
-      return {
-        municipalities: [],
-        selectedMunicipality: null,
-        error: '市区町村の取得に失敗しました',
-      };
+    if (
+      !regionInfo.regionIds ||
+      !regionInfo.regionCodes ||
+      !regionInfo.regionNames
+    ) {
+      throw new Error('Invalid prefecture for municipalities');
     }
+
+    const fetchedMunicipalities =
+      await city.getMunicipalities(regionInfo.regionNames.toString(), selectedPrefecture, regionInfo.regionIds, regionInfo.regionCodes);
+
+    const municipalities = Array.isArray(fetchedMunicipalities)
+      ? fetchedMunicipalities
+      : [];
+
+    return {
+      municipalities,
+      selectedMunicipality:
+        municipalities.length > 0 ? municipalities[0] : null,
+      error: null,
+    };
   } catch (err) {
-    console.error('fetchMunicipalities error:', err);
+    console.error(err);
     return {
       municipalities: [],
       selectedMunicipality: null,
@@ -206,78 +276,19 @@ export const fetchMunicipalities = async (selectedPrefecture: string): Promise<{
   }
 };
 
+/* =========================================================
+   天候判定（軽量化）
+========================================================= */
 export const predictWeather = (
   weatherCode: number,
   temperature: number,
   precipitation: number,
-  humidity: number,
-  windSpeed: number,
-  weatherData: number[][],
-  threshold: number
+  windSpeed: number
 ): string => {
-  // 強風・暴風の基準 (風速 m/s)
-  const strongWindThreshold = 15;
-  const stormWindThreshold = 25;
+  if (temperature <= 0 && precipitation > 50) return '大雪';
+  if (precipitation > 60) return '大雨';
+  if (windSpeed > 25) return '暴風';
 
-  // リッジ検出による天候判定
-  const ridgeDetected = ridgeDetection(weatherData, threshold);
-
-  // 雪の条件
-  if (temperature <= 0 && precipitation >= 50 && windSpeed >= stormWindThreshold) {
-    return '暴風雪';
-  }
-  if (temperature <= 0 && precipitation >= 30 && windSpeed >= strongWindThreshold) {
-    return '吹雪';
-  }
-  if (temperature <= 0 && precipitation >= 30) {
-    return '大雪';
-  }
-  if (temperature < 0 && precipitation > 0) {
-    return '雪';
-  }
-
-  // 雨の条件
-  if (precipitation > 80 && windSpeed >= stormWindThreshold) {
-    return '暴風雨';
-  }
-  if (precipitation > 60 && windSpeed >= strongWindThreshold) {
-    return '強風を伴う大雨';
-  }
-  if (precipitation > 60) {
-    return '大雨';
-  }
-  if (precipitation >= 30 && precipitation <= 50) {
-    return '小雨';
-  }
-  if (precipitation >= 10 && precipitation <= 30) {
-    return '通り雨';
-  }
-
-  // 風の条件
-  if (windSpeed >= stormWindThreshold) {
-    return '暴風';
-  }
-  if (windSpeed >= strongWindThreshold) {
-    return '強風';
-  }
-
-  if (ridgeDetected && weatherCode === 1) {
-    return '曇り';
-  } else if (ridgeDetected && weatherCode === 0) {
-    return '晴れ';
-  } else if (ridgeDetected && weatherCode === 2) {
-    return '曇り';
-  } else if (ridgeDetected && weatherCode === 3) {
-    return '曇り';
-  } else if (ridgeDetected && weatherCode === 61) {
-    return '雨';
-  } else if (ridgeDetected && weatherCode === 63) {
-    return '雨';
-  } else if (ridgeDetected && weatherCode === 65) {
-    return '雨';
-  }
-
-  // WMO Weather interpretation codes (WW)
   switch (weatherCode) {
     case 0:
       return '晴れ';
@@ -285,13 +296,6 @@ export const predictWeather = (
     case 2:
     case 3:
       return '曇り';
-    case 45:
-    case 48:
-      return '霧';
-    case 51:
-    case 53:
-    case 55:
-      return '小雨';
     case 61:
     case 63:
     case 65:
@@ -300,67 +304,9 @@ export const predictWeather = (
     case 73:
     case 75:
       return '雪';
-    case 77:
-      return '霧雪';
-    case 80:
-    case 81:
-    case 82:
-      return 'にわか雨';
-    case 85:
-    case 86:
-      return 'にわか雪';
     case 95:
       return '雷雨';
-    case 96:
-    case 99:
-      return '雷を伴う雹';
     default:
       return '晴れ';
   }
-};
-
-export const ridgeDetection = (data: number[][], threshold: number): boolean => {
-  const rows = data.length;
-  const cols = data[0].length;
-  let count = Array.from({ length: rows }, () => Array(cols).fill(0));
-
-  for (let i = 1; i < rows - 1; i++) {
-    for (let j = 1; j < cols - 1; j++) {
-      if (data[i][j] > threshold && !isNaN(data[i][j])) {
-        let step_i = i;
-        let step_j = j;
-
-        for (let k = 0; k < 1000; k++) {
-          if (step_i === 0 || step_j === 0 || step_i === rows - 1 || step_j === cols - 1) {
-            break;
-          }
-
-          let index = 4;
-          let vmax = -Infinity;
-          for (let ii = -1; ii <= 1; ii++) {
-            for (let jj = -1; jj <= 1; jj++) {
-              const value = data[step_i + ii][step_j + jj];
-              if (value > vmax) {
-                vmax = value;
-                index = (ii + 1) * 3 + (jj + 1);
-              }
-            }
-          }
-
-          if (index === 4 || vmax === data[step_i][step_j] || isNaN(vmax)) {
-            break;
-          }
-
-          const row = Math.floor(index / 3) - 1;
-          const col = (index % 3) - 1;
-          count[step_i + row][step_j + col] += 1;
-          step_i += row;
-          step_j += col;
-        }
-      }
-    }
-  }
-
-  const weatherNormalized = data.flat().reduce((sum, val) => sum + val, 0) / (rows * cols);
-  return weatherNormalized > threshold;
 };

@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "数据加载中...",
+    "error": "发生错误",
+    "success": "成功",
+    "select": "选择",
+    "search": "搜索",
+    "all": "全部"
+  },
+  "settings": {
+    "24h": "24小时制",
+    "notifications": "通知设置",
+    "use_location": "使用当前位置",
+    "test_notify": "发送测试通知",
+    "save": "保存设置",
+    "saved": "设置已成功保存！"
+  },
+  "prefecture": {
+    "label": "选择都道府县:",
+    "error": "获取市町村失败"
+  },
+  "municipality": {
+    "label": "选择市町村:",
+    "placeholder": "搜索市町村",
+    "notFound": "无法选择市町村",
+    "ascending": "升序",
+    "descending": "降序"
+  },
+  "timeFilter": {
+    "label": "选择时间段:",
+    "all": "全部",
+    "morning": "上午 (6:00〜12:00)",
+    "afternoon": "下午 (12:00〜18:00)",
+    "night": "晚上 (18:00〜6:00)"
+  },
+  "weather": {
+    "noData": "所选时间段无天气预报。",
+    "fetchError": "获取天气数据失败",
+    "locationError": "位置访问权限被拒绝",
+    "locationPermissionError": "请确保位置服务已启用。"
+  },
+  "world": {
+    "modeOn": "世界模式: 开启",
+    "modeOff": "世界模式: 关闭",
+    "placeholder": "输入城市名称（例如: 伦敦）",
+    "search": "搜索世界天气",
+    "cities": {
+      "newyork": "纽约",
+      "london": "伦敦",
+      "tokyo": "东京",
+      "paris": "巴黎",
+      "sydney": "悉尼",
+      "dubai": "迪拜",
+      "singapore": "新加坡",
+      "bangkok": "曼谷",
+      "seoul": "首尔",
+      "barcelona": "巴塞罗那",
+      "toronto": "多伦多",
+      "berlin": "柏林"
+    },
+    "countries": {
+      "usa": "美国",
+      "uk": "英国",
+      "japan": "日本",
+      "france": "法国",
+      "australia": "澳大利亚",
+      "uae": "阿联酋",
+      "singapore": "新加坡",
+      "thailand": "泰国",
+      "southkorea": "韩国",
+      "spain": "西班牙",
+      "canada": "加拿大",
+      "germany": "德国"
+    }
+  },
+  "language": {
+    "label": "语言",
+    "japanese": "日本語",
+    "english": "English",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "chinese": "中文",
+    "korean": "한국어"
+  }
+}

@@ -1,17 +1,21 @@
 {
   "expo": {
-    "name": "weather-app",
+    "name": "天気予報アプリ(Stogia)",
     "slug": "weather-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/weather.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/weather.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/efb2f5b3-2d4a-4f5c-8f12-1b3e5c8e4f12"
+    },
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.daisaku31469.weatherapp"
@@ -23,18 +27,37 @@
       },
       "package": "com.daisaku31469.weatherapp",
       "permissions": [
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
       "favicon": "./assets/weather.png"
     },
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/weather.png",
+          "color": "#1976D2",
+          "sounds": ["default"]
+        }
+      ],
+      "expo-localization"
+    ],
     "extra": {
       "eas": {
-        "projectId": "f1a783ce-61ca-4a1f-845a-fdadd7fafc3b"
-      },
-      "resasApiKey": "YOUR_RESES_API_KEY"
-    },
-    "owner": "daisaku31469"
+        "projectId": "e3008152-645c-4093-937b-4686075db344"
+      }
+    }
   }
 }

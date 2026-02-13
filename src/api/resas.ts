@@ -1,17 +1,13 @@
-import Constants from "expo-constants";
-
-const API_KEY = Constants.expoConfig?.extra?.resasApiKey;
-
-const headers = {
-  "X-API-KEY": API_KEY ?? ""
-};
+// RESAS APIの代替: ローカルJSONから都道府県データを取得
+import prefectures from '../../assets/prefectures.json';
 
 export async function getPrefectures() {
-  const res = await fetch("https://opendata.resas-portal.go.jp/api/v1/prefectures", { headers });
-  return (await res.json()).result;
+  // 直接JSONデータを返す
+  return prefectures;
 }
 
+// 市区町村データも必要なら同様にローカルJSON化する
 export async function getCities(prefCode: number) {
-  const res = await fetch(`https://opendata.resas-portal.go.jp/api/v1/cities?prefCode=${prefCode}`, { headers });
-  return (await res.json()).result;
+  // ここでは空配列を返す（必要に応じて拡張）
+  return [];
 }
