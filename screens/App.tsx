@@ -814,8 +814,7 @@ function HomeScreen() {
             )}
           </View>
         </View>
-
-        <View style={{ height: 20 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       {/* Weather Detail Modal */}
