@@ -71,7 +71,7 @@
         "crossOrigin": "use-credentials",
         "dir": "ltr",
         "displayOverride": ["standalone", "minimal-ui"],
-        "serverURL": "https://weather-app.net",
+        "serverURL": "https://stogia.weather-app.net",
         "shortcuts": [
           {
             "name": "現在地の天気",
