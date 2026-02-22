@@ -229,9 +229,9 @@ export const fetchCoordinates = async (
       promises.push(makeFetchPromise(url2, (d) => d && d.results && d.results.length > 0, 'openmeteo2'));
     }
 
-    const nominatimQuery = prefRomaji ? `${cityRomaji}, ${prefectureName}, Japan` : `${cityRomaji}, Japan`;
-    const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
-    promises.push(makeFetchPromise(urlN, (d) => Array.isArray(d) && d.length > 0, 'nominatim'));
+    // const nominatimQuery = prefRomaji ? `${cityRomaji}, ${prefectureName}, Japan` : `${cityRomaji}, Japan`;
+    // const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
+    // promises.push(makeFetchPromise(urlN, (d) => Array.isArray(d) && d.length > 0, 'nominatim'));
 
     try {
       // Promise.any は最初に成功した promise を返す（全て失敗すると reject）

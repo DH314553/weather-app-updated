@@ -9,6 +9,7 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 // 外部コンポーネント・ユーティリティ
 import { WeatherCard, getWeatherIcon } from '../components/WeatherCard';
@@ -176,6 +177,7 @@ export default function HomeScreen() {
   }, []);
 
       // no-op: ensure not to set error during render
+
   const loadCities = useCallback(async () => {
     try {
       setLoading(true);
@@ -185,22 +187,28 @@ export default function HomeScreen() {
       const cityUtil = new City(selectedPrefecture.name);
       const regionInfo = getRegionInfo(selectedPrefecture.name);
       if (!regionInfo?.regionNames?.length) return;
-
-      // キャッシュファイル名の末尾を v5 にし、確実に新ロジックで再取得させる
-      const fileUri = `${FileSystem.documentDirectory}municipalities_${selectedPrefecture.name}_v5.json`;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-
+  
       let list: Municipality[] = [];
-
-      if (fileInfo.exists) {
-        const jsonString = await FileSystem.readAsStringAsync(fileUri);
-        const cachedData = JSON.parse(jsonString).municipalities;
-        if (cachedData.length > 0 && cachedData[0].kana) {
-          list = cachedData;
-          console.log(`📂 キャッシュ読込完了: ${selectedPrefecture.name}`);
+      const cacheKey = `municipalities_${selectedPrefecture.name}_v5`;
+  
+      // --- キャッシュ読み込みのWeb/アプリ分岐 ---
+      if (Platform.OS === 'web') {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          list = JSON.parse(cached);
+          console.log(`🌐 Webキャッシュ読込完了: ${selectedPrefecture.name}`);
+        }
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
+        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        if (fileInfo.exists) {
+          const jsonString = await FileSystem.readAsStringAsync(fileUri);
+          list = JSON.parse(jsonString).municipalities;
+          console.log(`📂 アプリキャッシュ読込完了: ${selectedPrefecture.name}`);
         }
       }
-
+  
+      // --- キャッシュがない場合の取得ロジック ---
       if (list.length === 0) {
         console.log(`🌐 座標と「かな」を再構築中...`);
         setLoadingProgress(20);
@@ -211,14 +219,13 @@ export default function HomeScreen() {
           regionInfo.regionIds!,
           regionInfo.regionCodes!
         );
-
-        // 超高速バッチ処理（15個ずつ、最小待機時間）
+  
         const batchSize = 15;
         const batches = [];
         for (let i = 0; i < fetchedData.length; i += batchSize) {
           batches.push(fetchedData.slice(i, i + batchSize));
         }
-
+  
         list = [];
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
@@ -226,10 +233,10 @@ export default function HomeScreen() {
             batch.map(async (item, index) => {
               const globalIndex = batchIndex * batchSize + index;
               if (globalIndex % 15 === 0) setLoadingProgress(20 + Math.floor((globalIndex / fetchedData.length) * 60));
-
+  
               const name = typeof item === 'string' ? item : item.name;
               const kana = item.kana || name;
-
+  
               try {
                 const coords = await fetchCoordinates(kana, false, selectedPrefecture.name, { lat: selectedPrefecture.lat, lng: selectedPrefecture.lng });
                 return { name, kana, lat: coords.lat.toString(), lon: coords.lon.toString() };
@@ -239,20 +246,26 @@ export default function HomeScreen() {
             })
           );
           list.push(...batchResults);
-
-          // バッチ間に最小限の待機（APIレート制限回避）
+  
           if (batchIndex < batches.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 20));
           }
         }
-
-        await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: list }));
+  
+        // --- 保存処理のWeb/アプリ分岐 ---
+        if (Platform.OS === 'web') {
+          localStorage.setItem(cacheKey, JSON.stringify(list));
+        } else {
+          const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
+          await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: list }));
+        }
       }
-
+  
       setMunicipalities(list);
       if (list.length > 0) setSelectedMunicipality(list[0]);
       setLoadingProgress(100);
     } catch (err) {
+      console.error(err);
       setError("データ読込エラー");
     } finally {
       setTimeout(() => setLoading(false), 300);
@@ -344,21 +357,35 @@ export default function HomeScreen() {
 
   // --- 天気データ取得 ---
   useEffect(() => {
+    // 緯度・経度がない場合は処理を中断
     if (!selectedMunicipality?.lat || !selectedMunicipality?.lon) return;
-
+  
     let isMounted = true;
     (async () => {
       try {
         setLoading(true);
-        const response: WeatherResponse = await fetchWeatherData(selectedMunicipality.lat, selectedMunicipality.lon);
+        setError(null); // 前のエラーをリセット
+        
+        // Web環境ではネットワークの瞬断が起きやすいため、タイムアウト等の考慮が必要な場合があります
+        const response: WeatherResponse = await fetchWeatherData(
+          selectedMunicipality.lat, 
+          selectedMunicipality.lon
+        );
+  
+        // responseが空または期待した構造でない場合のガード
+        if (!response || !response.hourly) {
+          throw new Error("Invalid weather data received");
+        }
+  
         const processed = response.hourly.time.map((time, index) => ({
           dateIndex: index,
+          // Webブラウザのロケール設定に依存しないよう 'ja-JP' を明示
           date: new Date(time).toLocaleDateString('ja-JP'),
           dateTime: `${new Date(time).getHours().toString().padStart(2, '0')}時00分`,
           areaName: selectedMunicipality.name,
-          windSpeed: response.hourly.wind_speed_10m[index].toString(),
-          precipitation: response.hourly.precipitation_probability[index],
-          temperature: response.hourly.temperature_2m[index],
+          windSpeed: response.hourly.wind_speed_10m[index]?.toString() || "0",
+          precipitation: response.hourly.precipitation_probability[index] || 0,
+          temperature: response.hourly.temperature_2m[index] || 0,
           predictedWeather: predictWeather(
             response.hourly.weather_code[index], 
             response.hourly.temperature_2m[index], 
@@ -366,13 +393,13 @@ export default function HomeScreen() {
             response.hourly.wind_speed_10m[index]
           ),
           prefecture: selectedPrefecture.name,
-          actualWeather: response.hourly.weather_code[index].toString(),
+          actualWeather: response.hourly.weather_code[index]?.toString() || "0",
           isPredictionCorrect: false,
           latitude: selectedMunicipality.lat,
           longitude: selectedMunicipality.lon,
         }));
-
-        // 週間予報の処理（dailyがある場合）
+  
+        // 週間予報の処理
         let weekly: any[] = [];
         try {
           if (response.daily && Array.isArray(response.daily.time)) {
@@ -381,7 +408,10 @@ export default function HomeScreen() {
               const min = response.daily.temperature_2m_min?.[i] ?? null;
               const precip = response.daily.precipitation_probability_max?.[i] ?? 0;
               const wcode = response.daily.weathercode?.[i] ?? 0;
-              const predicted = predictWeather(wcode, (max + min) / 2 || 0, precip, 0);
+              // Web環境での計算誤差を防ぐため数値を担保
+              const avgTemp = (typeof max === 'number' && typeof min === 'number') ? (max + min) / 2 : 0;
+              const predicted = predictWeather(wcode, avgTemp, precip, 0);
+              
               return {
                 date: d,
                 weekday: new Date(d).toLocaleDateString('ja-JP', { weekday: 'short', month: 'numeric', day: 'numeric' }),
@@ -394,23 +424,28 @@ export default function HomeScreen() {
             }).slice(0, 7);
           }
         } catch (e) {
-          console.warn('Weekly parse error', e);
+          console.warn('Weekly parse error:', e);
         }
-
+  
         if (isMounted) {
           setWeatherDataList(processed);
           setWeeklyForecast(weekly);
           setLoadingProgress(100);
         }
       } catch (err) {
-        if (isMounted) setError("天気取得失敗");
-        if (isMounted) setError(t('weather.fetchError', undefined, '天気取得失敗'));
+        console.error("Weather fetch error details:", err);
+        if (isMounted) {
+          // Web環境ではユーザーに分かりやすいエラーを表示
+          const errorMsg = t('weather.fetchError', undefined, '天気データの取得に失敗しました。');
+          setError(errorMsg);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
     })();
+  
     return () => { isMounted = false; };
-  }, [selectedMunicipality]);
+  }, [selectedMunicipality, selectedPrefecture.name]); // 都道府県変更時も再取得を確実にするため追加
 
   // --- 高速フィルタリング (漢字 & ひらがな対応) ---
   const filteredMunicipalities = useMemo(() => {

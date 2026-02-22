@@ -7,7 +7,7 @@ export interface Prefecture {
   lng: string;
 }
 
-interface PrefectureContextType {
+export interface PrefectureContextType {
   selectedPrefecture: Prefecture;
   setSelectedPrefecture: React.Dispatch<React.SetStateAction<Prefecture>>;
 }
