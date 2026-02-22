@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
@@ -13,7 +14,6 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "emit": true,
     "jsx": "react-jsx",
 
     /* Linting */

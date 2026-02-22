@@ -55,14 +55,22 @@ const getNestedValue = (obj: any, path: string): any => {
 };
 
 // Main translation function
-export const t = (key: string, defaultValue?: string): string => {
+export const t = (key: string, params?: { [k: string]: any }, defaultValue?: string): string => {
   try {
-    const value = getNestedValue(translations[currentLanguage], key);
+    let value = getNestedValue(translations[currentLanguage], key);
     if (value === undefined || value === null) {
       console.warn(`Translation key not found: ${key} for language: ${currentLanguage}`);
-      return defaultValue || key;
+      value = defaultValue || key;
     }
-    return String(value);
+
+    let str = String(value);
+    if (params && typeof params === 'object') {
+      Object.keys(params).forEach(k => {
+        const re = new RegExp(`\\{${k}\\}`, 'g');
+        str = str.replace(re, String(params[k]));
+      });
+    }
+    return str;
   } catch (error) {
     console.warn(`Error translating key: ${key}`, error);
     return defaultValue || key;

@@ -5,15 +5,19 @@
     "success": "Erfolg",
     "select": "Auswählen",
     "search": "Suche",
-    "all": "Alle"
+    "all": "Alle",
+    "close": "Schließen",
+    "cancel": "Abbrechen"
   },
   "settings": {
+    "title": "Einstellungen",
     "24h": "24-Stunden-Format",
     "notifications": "Benachrichtigungen",
     "use_location": "Aktuellen Standort verwenden",
     "test_notify": "Test-Benachrichtigung senden",
     "save": "Einstellungen speichern",
     "saved": "Einstellungen erfolgreich gespeichert!"
+    ,"notificationUpdateFailed": "Fehler beim Aktualisieren der Benachrichtigungseinstellungen."
   },
   "prefecture": {
     "label": "Präfektur auswählen:",
@@ -24,7 +28,8 @@
     "placeholder": "Gemeinde durchsuchen",
     "notFound": "Gemeinde kann nicht ausgewählt werden",
     "ascending": "Aufsteigend",
-    "descending": "Absteigend"
+    "descending": "Absteigend",
+    "inputPlaceholderLong": "Geben Sie in hiragana, katakana oder kanji ein"
   },
   "timeFilter": {
     "label": "Zeitraum auswählen:",
@@ -72,6 +77,23 @@
       "canada": "Kanada",
       "germany": "Deutschland"
     }
+    ,
+    "title": "Wetter weltweit",
+    "subtitle": "Wetter von Städten weltweit prüfen",
+    "searchPlaceholder": "Stadtnamen eingeben (z.B. Paris, Bangkok)",
+    "searchButton": "Suchen",
+    "searching": "Suche...",
+    "addMajorCities": "Hauptstädte hinzufügen",
+    "weatherInfo": "Wetterinformationen",
+    "clearAll": "Alle löschen",
+    "remove": "Entfernen",
+    "noSelection": "Wählen Sie eine Stadt, um das Wetter anzuzeigen",
+    "errors": {
+      "enterName": "Bitte geben Sie einen Stadtnamen ein",
+      "notFound": "{city} nicht gefunden",
+      "searchFailed": "Suche nach {city} fehlgeschlagen",
+      "fetchFailed": "Wetter für {city} konnte nicht abgerufen werden"
+    }
   },
   "language": {
     "label": "Sprache",
@@ -82,5 +104,84 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  }
+,
+  "conditions": {
+    "sunny": "Sonnig",
+    "partly_cloudy": "Teilweise bewölkt",
+    "cloudy": "Bewölkt",
+    "rain": "Regen",
+    "light_rain": "leichter Regen",
+    "shower": "Schauer",
+    "snow": "Schnee",
+    "heavy_snow": "starker Schneefall",
+    "blizzard": "Schneesturm",
+    "sleet": "Schneeregen",
+    "storm": "Sturm",
+    "windy": "Windig",
+    "hurricane": "Hurrikan",
+    "fog": "Nebel",
+    "thunderstorm": "Gewitter",
+    "hail": "Hagel"
+  },
+  "prefectures": {
+    "Hokkaido": "Hokkaido",
+    "Aomori": "Aomori",
+    "Iwate": "Iwate",
+    "Miyagi": "Miyagi",
+    "Akita": "Akita",
+    "Yamagata": "Yamagata",
+    "Fukushima": "Fukushima",
+    "Ibaraki": "Ibaraki",
+    "Tochigi": "Tochigi",
+    "Gunma": "Gunma",
+    "Saitama": "Saitama",
+    "Chiba": "Chiba",
+    "Tokyo": "Tokyo",
+    "Kanagawa": "Kanagawa",
+    "Niigata": "Niigata",
+    "Toyama": "Toyama",
+    "Ishikawa": "Ishikawa",
+    "Fukui": "Fukui",
+    "Yamanashi": "Yamanashi",
+    "Nagano": "Nagano",
+    "Gifu": "Gifu",
+    "Shizuoka": "Shizuoka",
+    "Aichi": "Aichi",
+    "Mie": "Mie",
+    "Shiga": "Shiga",
+    "Kyoto": "Kyoto",
+    "Osaka": "Osaka",
+    "Hyogo": "Hyogo",
+    "Nara": "Nara",
+    "Wakayama": "Wakayama",
+    "Tottori": "Tottori",
+    "Shimane": "Shimane",
+    "Okayama": "Okayama",
+    "Hiroshima": "Hiroshima",
+    "Yamaguchi": "Yamaguchi",
+    "Tokushima": "Tokushima",
+    "Kagawa": "Kagawa",
+    "Ehime": "Ehime",
+    "Kochi": "Kochi",
+    "Fukuoka": "Fukuoka",
+    "Saga": "Saga",
+    "Nagasaki": "Nagasaki",
+    "Kumamoto": "Kumamoto",
+    "Oita": "Oita",
+    "Miyazaki": "Miyazaki",
+    "Kagoshima": "Kagoshima",
+    "Okinawa": "Okinawa"
+  },
+  "app": { "title": "Wettervorhersage", "subtitle": "{prefecture} Vorhersage" },
+  "weekly": { "title": "Wöchentliche Vorhersage" },
+  "hourly": { "title": "Stündliche Vorhersage" },
+  "detail": {
+    "title": "{area} Details",
+    "date": "Datum:",
+    "weather": "Wetter",
+    "temperature": "Temperatur:",
+    "precipitation": "Niederschlag:",
+    "wind": "Windgeschwindigkeit:"
   }
 }

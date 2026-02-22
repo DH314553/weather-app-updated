@@ -4,10 +4,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import App from "../screens/App";
 import SettingsScreen from "../screens/SettingsScreen";
 import WorldWeatherScreen from "../screens/WorldWeatherScreen";
+import { t } from '../utils/i18n';
+import { useLanguage } from '../LanguageContext';
 
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator() {
+  const { language } = useLanguage();
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -60,23 +63,17 @@ export default function BottomTabNavigator() {
         <Tab.Screen
           name="Home"
           component={App}
-          options={{
-            tabBarLabel: "天気予報",
-          }}
+          options={() => ({ tabBarLabel: t('app.title', undefined, '天気予報') })}
         />
         <Tab.Screen
           name="World"
           component={WorldWeatherScreen}
-          options={{
-            tabBarLabel: "世界の天気",
-          }}
+          options={() => ({ tabBarLabel: t('world.title', undefined, '世界の天気') })}
         />
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
-          options={{
-            tabBarLabel: "設定",
-          }}
+          options={() => ({ tabBarLabel: t('settings.title', undefined, '設定') })}
         />
       </Tab.Navigator>
     </NavigationContainer>

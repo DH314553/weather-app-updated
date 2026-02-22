@@ -5,15 +5,19 @@
     "success": "成功",
     "select": "選択",
     "search": "検索",
-    "all": "すべて"
+    "all": "すべて",
+    "close": "閉じる",
+    "cancel": "キャンセル"
   },
   "settings": {
+    "title": "設定",
     "24h": "24時間表記",
     "notifications": "通知設定",
     "use_location": "現在地を使用する",
     "test_notify": "テスト通知を送信",
     "save": "設定を保存",
     "saved": "設定を保存しました！"
+    ,"notificationUpdateFailed": "通知設定の更新に失敗しました。"
   },
   "prefecture": {
     "label": "都道府県を選択:",
@@ -24,7 +28,8 @@
     "placeholder": "市区町村を検索",
     "notFound": "市区町村を選択できません",
     "ascending": "昇順",
-    "descending": "降順"
+    "descending": "降順",
+    "inputPlaceholderLong": "ひらがな、カタカナ、漢字で入力"
   },
   "timeFilter": {
     "label": "時間帯を選択:",
@@ -71,6 +76,22 @@
       "spain": "スペイン",
       "canada": "カナダ",
       "germany": "ドイツ"
+    },
+    "title": "世界の天気",
+    "subtitle": "世界中の都市の天気をチェック",
+    "searchPlaceholder": "都市名を入力 (例: Paris, Bangkok)",
+    "searchButton": "検索",
+    "searching": "検索中...",
+    "addMajorCities": "主要都市を追加",
+    "weatherInfo": "天気情報",
+    "clearAll": "すべてクリア",
+    "remove": "削除",
+    "noSelection": "都市を選択して天気を表示します",
+    "errors": {
+      "enterName": "都市名を入力してください",
+      "notFound": "{city}が見つかりませんでした",
+      "searchFailed": "{city}を検索できませんでした",
+      "fetchFailed": "{city}の天気を取得できませんでした"
     }
   },
   "language": {
@@ -82,5 +103,86 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  },
+  "app": {
+    "title": "天気予報",
+    "subtitle": "{prefecture}の予報"
+  },
+  "conditions": {
+    "sunny": "晴れ",
+    "partly_cloudy": "晴れ時々曇り",
+    "cloudy": "曇り",
+    "rain": "雨",
+    "light_rain": "小雨",
+    "shower": "にわか雨",
+    "snow": "雪",
+    "heavy_snow": "大雪",
+    "blizzard": "吹雪",
+    "sleet": "霧雪",
+    "storm": "暴風雨",
+    "windy": "強風",
+    "hurricane": "暴風",
+    "fog": "霧",
+    "thunderstorm": "雷雨",
+    "hail": "雹"
+  },
+  "prefectures": {
+    "Hokkaido": "北海道",
+    "Aomori": "青森県",
+    "Iwate": "岩手県",
+    "Miyagi": "宮城県",
+    "Akita": "秋田県",
+    "Yamagata": "山形県",
+    "Fukushima": "福島県",
+    "Ibaraki": "茨城県",
+    "Tochigi": "栃木県",
+    "Gunma": "群馬県",
+    "Saitama": "埼玉県",
+    "Chiba": "千葉県",
+    "Tokyo": "東京都",
+    "Kanagawa": "神奈川県",
+    "Niigata": "新潟県",
+    "Toyama": "富山県",
+    "Ishikawa": "石川県",
+    "Fukui": "福井県",
+    "Yamanashi": "山梨県",
+    "Nagano": "長野県",
+    "Gifu": "岐阜県",
+    "Shizuoka": "静岡県",
+    "Aichi": "愛知県",
+    "Mie": "三重県",
+    "Shiga": "滋賀県",
+    "Kyoto": "京都府",
+    "Osaka": "大阪府",
+    "Hyogo": "兵庫県",
+    "Nara": "奈良県",
+    "Wakayama": "和歌山県",
+    "Tottori": "鳥取県",
+    "Shimane": "島根県",
+    "Okayama": "岡山県",
+    "Hiroshima": "広島県",
+    "Yamaguchi": "山口県",
+    "Tokushima": "徳島県",
+    "Kagawa": "香川県",
+    "Ehime": "愛媛県",
+    "Kochi": "高知県",
+    "Fukuoka": "福岡県",
+    "Saga": "佐賀県",
+    "Nagasaki": "長崎県",
+    "Kumamoto": "熊本県",
+    "Oita": "大分県",
+    "Miyazaki": "宮崎県",
+    "Kagoshima": "鹿児島県",
+    "Okinawa": "沖縄県"
+  },
+  "weekly": { "title": "週間予報" },
+  "hourly": { "title": "1時間ごとの予報" },
+  "detail": {
+    "title": "{area} 詳細",
+    "date": "日時:",
+    "weather": "天気",
+    "temperature": "気温:",
+    "precipitation": "降水確率:",
+    "wind": "風速:"
   }
 }

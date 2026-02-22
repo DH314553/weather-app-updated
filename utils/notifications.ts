@@ -85,9 +85,7 @@ export async function cancelWeatherNotification() {
    指定された天気を、指定された時間（または5秒後）に通知します
 ========================================= */
 export async function scheduleWeatherNotification(
-  weather: string,
-  notificationTime: Date
-) {
+weather: string, notificationTime: Date) {
   try {
     // 既存のスケジュールがあれば削除
     await cancelWeatherNotification();

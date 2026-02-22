@@ -5,15 +5,19 @@
     "success": "성공",
     "select": "선택",
     "search": "검색",
-    "all": "모두"
+    "all": "모두",
+    "close": "닫기",
+    "cancel": "취소"
   },
   "settings": {
+    "title": "설정",
     "24h": "24시간 형식",
     "notifications": "알림 설정",
     "use_location": "현재 위치 사용",
     "test_notify": "테스트 알림 보내기",
     "save": "설정 저장",
     "saved": "설정이 성공적으로 저장되었습니다!"
+    ,"notificationUpdateFailed": "알림 설정 업데이트에 실패했습니다."
   },
   "prefecture": {
     "label": "도도부현 선택:",
@@ -24,7 +28,8 @@
     "placeholder": "시정촌 검색",
     "notFound": "시정촌을 선택할 수 없습니다",
     "ascending": "오름차순",
-    "descending": "내림차순"
+    "descending": "내림차순",
+    "inputPlaceholderLong": "히라가나, 가타카나 또는 한자로 입력하세요"
   },
   "timeFilter": {
     "label": "시간대 선택:",
@@ -72,6 +77,23 @@
       "canada": "캐나다",
       "germany": "독일"
     }
+    ,
+    "title": "세계의 날씨",
+    "subtitle": "전 세계 도시의 날씨를 확인하세요",
+    "searchPlaceholder": "도시명 입력 (예: Paris, Bangkok)",
+    "searchButton": "검색",
+    "searching": "검색 중...",
+    "addMajorCities": "주요 도시 추가",
+    "weatherInfo": "날씨 정보",
+    "clearAll": "모두 지우기",
+    "remove": "삭제",
+    "noSelection": "도시를 선택하여 날씨를 표시합니다",
+    "errors": {
+      "enterName": "도시명을 입력해주세요",
+      "notFound": "{city}를 찾을 수 없습니다",
+      "searchFailed": "{city} 검색에 실패했습니다",
+      "fetchFailed": "{city}의 날씨를 가져오지 못했습니다"
+    }
   },
   "language": {
     "label": "언어",
@@ -82,5 +104,84 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  }
+,
+  "conditions": {
+    "sunny": "맑음",
+    "partly_cloudy": "구름 조금",
+    "cloudy": "흐림",
+    "rain": "비",
+    "light_rain": "약한 비",
+    "shower": "소나기",
+    "snow": "눈",
+    "heavy_snow": "폭설",
+    "blizzard": "눈보라",
+    "sleet": "진눈깨비",
+    "storm": "폭풍",
+    "windy": "바람",
+    "hurricane": "허리케인",
+    "fog": "안개",
+    "thunderstorm": "천둥번개",
+    "hail": "우박"
+  },
+  "prefectures": {
+    "Hokkaido": "Hokkaido",
+    "Aomori": "Aomori",
+    "Iwate": "Iwate",
+    "Miyagi": "Miyagi",
+    "Akita": "Akita",
+    "Yamagata": "Yamagata",
+    "Fukushima": "Fukushima",
+    "Ibaraki": "Ibaraki",
+    "Tochigi": "Tochigi",
+    "Gunma": "Gunma",
+    "Saitama": "Saitama",
+    "Chiba": "Chiba",
+    "Tokyo": "Tokyo",
+    "Kanagawa": "Kanagawa",
+    "Niigata": "Niigata",
+    "Toyama": "Toyama",
+    "Ishikawa": "Ishikawa",
+    "Fukui": "Fukui",
+    "Yamanashi": "Yamanashi",
+    "Nagano": "Nagano",
+    "Gifu": "Gifu",
+    "Shizuoka": "Shizuoka",
+    "Aichi": "Aichi",
+    "Mie": "Mie",
+    "Shiga": "Shiga",
+    "Kyoto": "Kyoto",
+    "Osaka": "Osaka",
+    "Hyogo": "Hyogo",
+    "Nara": "Nara",
+    "Wakayama": "Wakayama",
+    "Tottori": "Tottori",
+    "Shimane": "Shimane",
+    "Okayama": "Okayama",
+    "Hiroshima": "Hiroshima",
+    "Yamaguchi": "Yamaguchi",
+    "Tokushima": "Tokushima",
+    "Kagawa": "Kagawa",
+    "Ehime": "Ehime",
+    "Kochi": "Kochi",
+    "Fukuoka": "Fukuoka",
+    "Saga": "Saga",
+    "Nagasaki": "Nagasaki",
+    "Kumamoto": "Kumamoto",
+    "Oita": "Oita",
+    "Miyazaki": "Miyazaki",
+    "Kagoshima": "Kagoshima",
+    "Okinawa": "Okinawa"
+  },
+  "app": { "title": "날씨 예보", "subtitle": "{prefecture} 예보" },
+  "weekly": { "title": "주간 예보" },
+  "hourly": { "title": "시간별 예보" },
+  "detail": {
+    "title": "{area} 세부 정보",
+    "date": "날짜:",
+    "weather": "날씨",
+    "temperature": "기온:",
+    "precipitation": "강수 확률:",
+    "wind": "풍속:"
   }
 }

@@ -5,15 +5,19 @@
     "success": "Succès",
     "select": "Sélectionner",
     "search": "Rechercher",
-    "all": "Tous"
+    "all": "Tous",
+    "close": "Fermer",
+    "cancel": "Annuler"
   },
   "settings": {
+    "title": "Paramètres",
     "24h": "Format 24 heures",
     "notifications": "Notifications",
     "use_location": "Utiliser la position actuelle",
     "test_notify": "Envoyer une notification de test",
     "save": "Enregistrer les paramètres",
     "saved": "Paramètres enregistrés avec succès !"
+    ,"notificationUpdateFailed": "Échec de la mise à jour des paramètres de notification."
   },
   "prefecture": {
     "label": "Sélectionner une préfecture:",
@@ -24,7 +28,8 @@
     "placeholder": "Rechercher une municipalité",
     "notFound": "Impossible de sélectionner une municipalité",
     "ascending": "Ascendant",
-    "descending": "Descendant"
+    "descending": "Descendant",
+    "inputPlaceholderLong": "Saisissez en hiragana, katakana ou kanji"
   },
   "timeFilter": {
     "label": "Sélectionner la période:",
@@ -72,6 +77,23 @@
       "canada": "Canada",
       "germany": "Allemagne"
     }
+    ,
+    "title": "Météo mondiale",
+    "subtitle": "Consultez la météo des villes du monde entier",
+    "searchPlaceholder": "Entrez le nom de la ville (ex: Paris, Bangkok)",
+    "searchButton": "Rechercher",
+    "searching": "Recherche en cours...",
+    "addMajorCities": "Ajouter les principales villes",
+    "weatherInfo": "Informations météo",
+    "clearAll": "Tout effacer",
+    "remove": "Supprimer",
+    "noSelection": "Sélectionnez une ville pour afficher la météo",
+    "errors": {
+      "enterName": "Veuillez entrer un nom de ville",
+      "notFound": "{city} introuvable",
+      "searchFailed": "Échec de la recherche de {city}",
+      "fetchFailed": "Échec de la récupération de la météo pour {city}"
+    }
   },
   "language": {
     "label": "Langue",
@@ -82,5 +104,84 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  }
+,
+  "conditions": {
+    "sunny": "Ensoleillé",
+    "partly_cloudy": "Partiellement nuageux",
+    "cloudy": "Nuageux",
+    "rain": "Pluie",
+    "light_rain": "Pluie légère",
+    "shower": "Averse",
+    "snow": "Neige",
+    "heavy_snow": "Fortes chutes de neige",
+    "blizzard": "Blizzard",
+    "sleet": "Neige fondue",
+    "storm": "Tempête",
+    "windy": "Venteux",
+    "hurricane": "Ouragan",
+    "fog": "Brouillard",
+    "thunderstorm": "Orage",
+    "hail": "Grêle"
+  },
+  "prefectures": {
+    "Hokkaido": "Hokkaido",
+    "Aomori": "Aomori",
+    "Iwate": "Iwate",
+    "Miyagi": "Miyagi",
+    "Akita": "Akita",
+    "Yamagata": "Yamagata",
+    "Fukushima": "Fukushima",
+    "Ibaraki": "Ibaraki",
+    "Tochigi": "Tochigi",
+    "Gunma": "Gunma",
+    "Saitama": "Saitama",
+    "Chiba": "Chiba",
+    "Tokyo": "Tokyo",
+    "Kanagawa": "Kanagawa",
+    "Niigata": "Niigata",
+    "Toyama": "Toyama",
+    "Ishikawa": "Ishikawa",
+    "Fukui": "Fukui",
+    "Yamanashi": "Yamanashi",
+    "Nagano": "Nagano",
+    "Gifu": "Gifu",
+    "Shizuoka": "Shizuoka",
+    "Aichi": "Aichi",
+    "Mie": "Mie",
+    "Shiga": "Shiga",
+    "Kyoto": "Kyoto",
+    "Osaka": "Osaka",
+    "Hyogo": "Hyogo",
+    "Nara": "Nara",
+    "Wakayama": "Wakayama",
+    "Tottori": "Tottori",
+    "Shimane": "Shimane",
+    "Okayama": "Okayama",
+    "Hiroshima": "Hiroshima",
+    "Yamaguchi": "Yamaguchi",
+    "Tokushima": "Tokushima",
+    "Kagawa": "Kagawa",
+    "Ehime": "Ehime",
+    "Kochi": "Kochi",
+    "Fukuoka": "Fukuoka",
+    "Saga": "Saga",
+    "Nagasaki": "Nagasaki",
+    "Kumamoto": "Kumamoto",
+    "Oita": "Oita",
+    "Miyazaki": "Miyazaki",
+    "Kagoshima": "Kagoshima",
+    "Okinawa": "Okinawa"
+  },
+  "app": { "title": "Météo", "subtitle": "Prévisions pour {prefecture}" },
+  "weekly": { "title": "Prévisions hebdomadaires" },
+  "hourly": { "title": "Prévisions horaires" },
+  "detail": {
+    "title": "Détails {area}",
+    "date": "Date:",
+    "weather": "Météo",
+    "temperature": "Température:",
+    "precipitation": "Précipitation:",
+    "wind": "Vent:"
   }
 }

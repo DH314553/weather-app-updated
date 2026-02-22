@@ -22,13 +22,14 @@ const WORLD_CITIES = [
   { nameKey: 'berlin', countryKey: 'germany', displayName: 'Berlin', lat: '52.5200', lng: '13.4050' },
 ];
 
+
 // Helper function to get localized city and country names
 const getLocalizedCityName = (cityKey: string): string => {
-  return t(`world.cities.${cityKey}`, cityKey);
+  return t(`world.cities.${cityKey}`);
 };
 
 const getLocalizedCountryName = (countryKey: string): string => {
-  return t(`world.countries.${countryKey}`, countryKey);
+  return t(`world.countries.${countryKey}`);
 };
 
 export default function WorldWeatherScreen() {
@@ -45,14 +46,14 @@ export default function WorldWeatherScreen() {
       const weatherResponse = await fetchWeatherData(lat, lng);
 
       if (!weatherResponse || !weatherResponse.current) {
-        throw new Error('天気データが取得できませんでした');
+        throw new Error(t('world.errors.fetchFailed', { city: cityName }));
       }
 
       const current = weatherResponse.current;
       const hourly = weatherResponse.hourly;
 
       if (!hourly) {
-        throw new Error('時間別データが利用できません');
+        throw new Error(t('weather.fetchError'));
       }
 
       const currentTime = new Date();
@@ -64,7 +65,7 @@ export default function WorldWeatherScreen() {
       const precipitation = (hourly.precipitation_probability as any)?.[hourIndex] ?? 0;
       const humidity = (current as any).relative_humidity_2m ?? 0;
 
-      const predictedWeatherStr = predictWeather(weatherCode, temp, precipitation, humidity, windSpeed, [[]], 50);
+      const predictedWeatherStr = predictWeather(weatherCode, temp, precipitation, windSpeed);
 
       const newWeather: WeatherData = {
         areaName: cityName,
@@ -86,7 +87,7 @@ export default function WorldWeatherScreen() {
       setSelectedCities((prev) => [...prev, cityName]);
     } catch (error) {
       console.error(`Error fetching weather for ${cityName}:`, error);
-      Alert.alert('エラー', `${cityName}の天気が取得できませんでした`);
+      Alert.alert(t('common.error'), t('world.errors.fetchFailed', { city: cityName }));
     } finally {
       setLoading(false);
     }
@@ -94,22 +95,22 @@ export default function WorldWeatherScreen() {
 
   const handleCustomCitySearch = async () => {
     if (!customCity.trim()) {
-      Alert.alert('入力してください', '都市名を入力してください');
+      Alert.alert(t('common.error'), t('world.errors.enterName'));
       return;
     }
 
     try {
       setLoading(true);
-      const coords = await fetchCoordinates(customCity);
+      const coords = await fetchCoordinates(customCity, true); // 第2引数 true で世界検索モード
       if (coords) {
         await fetchWeatherForCity(coords.lat, coords.lon, customCity);
         setCustomCity('');
-      } else {
-        Alert.alert('見つかりません', `${customCity}が見つかりませんでした`);
+        } else {
+        Alert.alert(t('common.error'), t('world.errors.notFound', { city: customCity }));
       }
     } catch (error) {
-      console.error('Error searching city:', error);
-      Alert.alert('エラー', `${customCity}を検索できませんでした`);
+      console.error('❌ Error searching city:', error);
+      Alert.alert(t('common.error'), `${t('world.errors.searchFailed', { city: customCity })}\n都市が見つかりません。別の都市名をお試しください。`);
     } finally {
       setLoading(false);
     }
@@ -125,19 +126,19 @@ export default function WorldWeatherScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <Text style={styles.appTitle}>世界の天気</Text>
+          <Text style={styles.appTitle}>{t('world.title')}</Text>
         </View>
-        <Text style={styles.headerSubtitle}>世界中の都市の天気をチェック</Text>
+        <Text style={styles.headerSubtitle}>{t('world.subtitle')}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Custom City Search */}
         <View style={styles.searchCard}>
-          <Text style={styles.sectionTitle}>都市を検索</Text>
+          <Text style={styles.sectionTitle}>{t('world.search')}</Text>
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="都市名を入力 (例: Paris, Bangkok)"
+              placeholder={t('world.searchPlaceholder')}
               value={customCity}
               onChangeText={setCustomCity}
               placeholderTextColor="#999"
@@ -147,14 +148,14 @@ export default function WorldWeatherScreen() {
               onPress={handleCustomCitySearch}
               disabled={loading}
             >
-              <Text style={styles.searchButtonText}>{loading ? '検索中...' : '検索'}</Text>
+              <Text style={styles.searchButtonText}>{loading ? t('world.searching') : t('world.searchButton')}</Text>
             </Pressable>
           </View>
         </View>
 
         {/* Preset Cities */}
         <View style={styles.citiesCard}>
-          <Text style={styles.sectionTitle}>主要都市を追加</Text>
+          <Text style={styles.sectionTitle}>{t('world.addMajorCities')}</Text>
           <View style={styles.citiesGrid}>
             {WORLD_CITIES.map((city) => {
               const localizedCityName = getLocalizedCityName(city.nameKey);
@@ -192,7 +193,7 @@ export default function WorldWeatherScreen() {
         {/* Weather Cards */}
         <View style={styles.weatherSection}>
           <View style={styles.weatherHeaderContainer}>
-            <Text style={styles.sectionTitle}>📊 天気情報</Text>
+            <Text style={styles.sectionTitle}>{t('world.weatherInfo')}</Text>
             {weatherDataList.length > 0 && (
               <Pressable
                 onPress={() => {
@@ -200,7 +201,7 @@ export default function WorldWeatherScreen() {
                   setSelectedCities([]);
                 }}
               >
-                <Text style={styles.clearButtonText}>すべてクリア</Text>
+                <Text style={styles.clearButtonText}>{t('world.clearAll')}</Text>
               </Pressable>
             )}
           </View>
@@ -220,12 +221,12 @@ export default function WorldWeatherScreen() {
                     onPress={() => removeCityWeather(data.areaName)}
                   >
                     <MaterialCommunityIcons name="close" size={20} color="#fff" />
-                    <Text style={styles.removeButtonText}>削除</Text>
+                    <Text style={styles.removeButtonText}>{t('world.remove')}</Text>
                   </Pressable>
                 </View>
               ))
             ) : (
-              <Text style={styles.noDataText}>都市を選択して天気を表示します</Text>
+              <Text style={styles.noDataText}>{t('world.noSelection')}</Text>
             )}
           </View>
         </View>
@@ -242,10 +243,10 @@ export default function WorldWeatherScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedWeather?.areaName} - 天気詳細</Text>
+              <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('detail.title', { area: selectedWeather?.areaName || '' })}</Text>
               <View style={styles.closeButtonContainer}>
-                <Button title="閉じる" onPress={() => setShowWeatherDetail(false)} color="#2196F3" />
+                <Button title={t('common.close')} onPress={() => setShowWeatherDetail(false)} color="#2196F3" />
               </View>
             </View>
 
@@ -253,12 +254,12 @@ export default function WorldWeatherScreen() {
               {selectedWeather && (
                 <View>
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>日時</Text>
+                    <Text style={styles.detailLabel}>{t('detail.date')}</Text>
                     <Text style={styles.detailValue}>{selectedWeather.date} {selectedWeather.dateTime}</Text>
                   </View>
 
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>天気</Text>
+                    <Text style={styles.detailLabel}>{t('detail.weather')}</Text>
                     <View style={styles.weatherDetailRow}>
                       <MaterialCommunityIcons
                         name={getWeatherIcon(selectedWeather.predictedWeather)}
@@ -270,12 +271,12 @@ export default function WorldWeatherScreen() {
                   </View>
 
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>気温</Text>
+                    <Text style={styles.detailLabel}>{t('detail.temperature')}</Text>
                     <Text style={styles.detailValue}>{selectedWeather.temperature.toFixed(1)}°C</Text>
                   </View>
 
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>降水確率</Text>
+                    <Text style={styles.detailLabel}>{t('detail.precipitation')}</Text>
                     <View style={styles.barContainer}>
                       <View style={[styles.barProgressFill, { width: `${selectedWeather.precipitation}%` }]} />
                     </View>
@@ -283,7 +284,7 @@ export default function WorldWeatherScreen() {
                   </View>
 
                   <View style={styles.detailCard}>
-                    <Text style={styles.detailLabel}>風速</Text>
+                    <Text style={styles.detailLabel}>{t('detail.wind')}</Text>
                     <Text style={styles.detailValue}>{selectedWeather.windSpeed} m/s</Text>
                   </View>
                 </View>

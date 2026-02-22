@@ -15,10 +15,15 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/efb2f5b3-2d4a-4f5c-8f12-1b3e5c8e4f12"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.daisaku31469.weatherapp"
+      "bundleIdentifier": "com.daisaku31469.weatherapp",
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -26,15 +31,78 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.daisaku31469.weatherapp",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "NOTIFICATIONS",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
       ]
     },
     "web": {
-      "favicon": "./assets/weather.png"
+      "favicon": "./assets/weather.png",
+      "manifest": {
+        "name": "天気予報アプリ(Stogia)",
+        "short_name": "天気予報",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "description": "日本全国の天気予報を提供するアプリです。現在地や都道府県を選択して、今日と明日の天気を確認できます。さらに、世界の都市の天気も検索できます。",
+        "icons": [
+          {
+            "src": "./assets/weather.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          },
+          {
+            "src": "./assets/weather.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ],
+        "lang": "ja",
+        "orientation": "portrait-primary",
+        "scope": "/",
+        "theme_color": "#1976D2",
+        "categories": ["weather", "forecast", "news"],
+        "characteristics": ["offline", "push-notifications", "location-based"],
+        "crossOrigin": "use-credentials",
+        "dir": "ltr",
+        "displayOverride": ["standalone", "minimal-ui"],
+        "serverURL": "https://weather-app.net",
+        "shortcuts": [
+          {
+            "name": "現在地の天気",
+            "short_name": "現在地",
+            "description": "現在地の天気を確認",
+            "url": "/current-location"
+          },
+          {
+            "name": "都道府県の天気",
+            "short_name": "都道府県",
+            "description": "都道府県別の天気を確認",
+            "url": "/prefectures"
+          },
+          {
+            "name": "世界の天気",
+            "short_name": "世界",
+            "description": "世界の都市の天気を検索",
+            "url": "/world"
+          }
+        ],
+        "related_applications": [
+          {
+            "platform": "play",
+            "url": "https://play.google.com/store/apps/details?id=com.daisaku31469.weatherapp"
+          },
+          {
+            "platform": "itunes",
+            "url": "https://apps.apple.com/app/id1234567890"
+          }
+        ]
+      }
     },
     "newArchEnabled": true,
     "plugins": [
@@ -49,15 +117,20 @@
         {
           "icon": "./assets/weather.png",
           "color": "#1976D2",
-          "sounds": ["default"]
+          "sounds": [
+            "default"
+          ]
         }
       ],
+      "expo-background-fetch",
+      "expo-task-manager",
       "expo-localization"
     ],
     "extra": {
       "eas": {
-        "projectId": "e3008152-645c-4093-937b-4686075db344"
+        "projectId": "f1a783ce-61ca-4a1f-845a-fdadd7fafc3b"
       }
-    }
+    },
+    "owner": "daisaku31469"
   }
 }

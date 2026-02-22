@@ -5,15 +5,19 @@
     "success": "成功",
     "select": "选择",
     "search": "搜索",
-    "all": "全部"
+    "all": "全部",
+    "close": "关闭",
+    "cancel": "取消"
   },
   "settings": {
+    "title": "设置",
     "24h": "24小时制",
     "notifications": "通知设置",
     "use_location": "使用当前位置",
     "test_notify": "发送测试通知",
     "save": "保存设置",
     "saved": "设置已成功保存！"
+    ,"notificationUpdateFailed": "更新通知设置失败。"
   },
   "prefecture": {
     "label": "选择都道府县:",
@@ -24,7 +28,8 @@
     "placeholder": "搜索市町村",
     "notFound": "无法选择市町村",
     "ascending": "升序",
-    "descending": "降序"
+    "descending": "降序",
+    "inputPlaceholderLong": "请输入平假名、片假名或汉字"
   },
   "timeFilter": {
     "label": "选择时间段:",
@@ -72,6 +77,23 @@
       "canada": "加拿大",
       "germany": "德国"
     }
+    ,
+    "title": "世界天气",
+    "subtitle": "查看世界各地城市的天气",
+    "searchPlaceholder": "输入城市名称（例如: Paris, Bangkok)",
+    "searchButton": "搜索",
+    "searching": "搜索中...",
+    "addMajorCities": "添加主要城市",
+    "weatherInfo": "天气信息",
+    "clearAll": "全部清除",
+    "remove": "删除",
+    "noSelection": "请选择一个城市以显示天气",
+    "errors": {
+      "enterName": "请输入城市名称",
+      "notFound": "未找到 {city}",
+      "searchFailed": "搜索 {city} 失败",
+      "fetchFailed": "获取 {city} 的天气失败"
+    }
   },
   "language": {
     "label": "语言",
@@ -82,5 +104,84 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  }
+,
+  "conditions": {
+    "sunny": "晴",
+    "partly_cloudy": "多云转晴",
+    "cloudy": "多云",
+    "rain": "雨",
+    "light_rain": "小雨",
+    "shower": "阵雨",
+    "snow": "雪",
+    "heavy_snow": "大雪",
+    "blizzard": "暴风雪",
+    "sleet": "雨夹雪",
+    "storm": "暴风雨",
+    "windy": "大风",
+    "hurricane": "飓风",
+    "fog": "雾",
+    "thunderstorm": "雷暴",
+    "hail": "冰雹"
+  },
+  "prefectures": {
+    "Hokkaido": "Hokkaido",
+    "Aomori": "Aomori",
+    "Iwate": "Iwate",
+    "Miyagi": "Miyagi",
+    "Akita": "Akita",
+    "Yamagata": "Yamagata",
+    "Fukushima": "Fukushima",
+    "Ibaraki": "Ibaraki",
+    "Tochigi": "Tochigi",
+    "Gunma": "Gunma",
+    "Saitama": "Saitama",
+    "Chiba": "Chiba",
+    "Tokyo": "Tokyo",
+    "Kanagawa": "Kanagawa",
+    "Niigata": "Niigata",
+    "Toyama": "Toyama",
+    "Ishikawa": "Ishikawa",
+    "Fukui": "Fukui",
+    "Yamanashi": "Yamanashi",
+    "Nagano": "Nagano",
+    "Gifu": "Gifu",
+    "Shizuoka": "Shizuoka",
+    "Aichi": "Aichi",
+    "Mie": "Mie",
+    "Shiga": "Shiga",
+    "Kyoto": "Kyoto",
+    "Osaka": "Osaka",
+    "Hyogo": "Hyogo",
+    "Nara": "Nara",
+    "Wakayama": "Wakayama",
+    "Tottori": "Tottori",
+    "Shimane": "Shimane",
+    "Okayama": "Okayama",
+    "Hiroshima": "Hiroshima",
+    "Yamaguchi": "Yamaguchi",
+    "Tokushima": "Tokushima",
+    "Kagawa": "Kagawa",
+    "Ehime": "Ehime",
+    "Kochi": "Kochi",
+    "Fukuoka": "Fukuoka",
+    "Saga": "Saga",
+    "Nagasaki": "Nagasaki",
+    "Kumamoto": "Kumamoto",
+    "Oita": "Oita",
+    "Miyazaki": "Miyazaki",
+    "Kagoshima": "Kagoshima",
+    "Okinawa": "Okinawa"
+  },
+  "app": { "title": "天气预报", "subtitle": "{prefecture} 的预报" },
+  "weekly": { "title": "每周预报" },
+  "hourly": { "title": "每小时预报" },
+  "detail": {
+    "title": "{area} 详情",
+    "date": "日期:",
+    "weather": "天气",
+    "temperature": "气温:",
+    "precipitation": "降水概率:",
+    "wind": "风速:"
   }
 }

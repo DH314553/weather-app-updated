@@ -5,15 +5,19 @@
     "success": "Success",
     "select": "Select",
     "search": "Search",
-    "all": "All"
+    "all": "All",
+    "close": "Close",
+    "cancel": "Cancel"
   },
   "settings": {
+    "title": "Settings",
     "24h": "24-hour Format",
     "notifications": "Notifications",
     "use_location": "Use Current Location",
     "test_notify": "Send Test Notification",
     "save": "Save Settings",
     "saved": "Settings saved successfully!"
+    ,"notificationUpdateFailed": "Failed to update notification settings."
   },
   "prefecture": {
     "label": "Select Prefecture:",
@@ -24,7 +28,8 @@
     "placeholder": "Search municipality",
     "notFound": "Unable to select municipality",
     "ascending": "Ascending",
-    "descending": "Descending"
+    "descending": "Descending",
+    "inputPlaceholderLong": "Type in hiragana, katakana or kanji"
   },
   "timeFilter": {
     "label": "Select Time Period:",
@@ -71,6 +76,22 @@
       "spain": "Spain",
       "canada": "Canada",
       "germany": "Germany"
+    },
+    "title": "World Weather",
+    "subtitle": "Check cities' weather around the world",
+    "searchPlaceholder": "Enter city name (e.g., Paris, Bangkok)",
+    "searchButton": "Search",
+    "searching": "Searching...",
+    "addMajorCities": "Add major cities",
+    "weatherInfo": "Weather Info",
+    "clearAll": "Clear all",
+    "remove": "Remove",
+    "noSelection": "Select a city to display weather",
+    "errors": {
+      "enterName": "Please enter a city name",
+      "notFound": "{city} not found",
+      "searchFailed": "Failed to search {city}",
+      "fetchFailed": "Failed to fetch weather for {city}"
     }
   },
   "language": {
@@ -82,5 +103,92 @@
     "german": "Deutsch",
     "chinese": "中文",
     "korean": "한국어"
+  }
+  ,
+  "app": {
+    "title": "Weather Forecast",
+    "subtitle": "{prefecture} forecast"
+  },
+  "conditions": {
+    "sunny": "Sunny",
+    "partly_cloudy": "Partly Cloudy",
+    "cloudy": "Cloudy",
+    "rain": "Rain",
+    "light_rain": "Light Rain",
+    "shower": "Shower",
+    "snow": "Snow",
+    "heavy_snow": "Heavy Snow",
+    "blizzard": "Blizzard",
+    "sleet": "Sleet",
+    "storm": "Storm",
+    "windy": "Windy",
+    "hurricane": "Hurricane",
+    "fog": "Fog",
+    "thunderstorm": "Thunderstorm",
+    "hail": "Hail"
+  },
+  "prefectures": {
+    "Hokkaido": "Hokkaido",
+    "Aomori": "Aomori",
+    "Iwate": "Iwate",
+    "Miyagi": "Miyagi",
+    "Akita": "Akita",
+    "Yamagata": "Yamagata",
+    "Fukushima": "Fukushima",
+    "Ibaraki": "Ibaraki",
+    "Tochigi": "Tochigi",
+    "Gunma": "Gunma",
+    "Saitama": "Saitama",
+    "Chiba": "Chiba",
+    "Tokyo": "Tokyo",
+    "Kanagawa": "Kanagawa",
+    "Niigata": "Niigata",
+    "Toyama": "Toyama",
+    "Ishikawa": "Ishikawa",
+    "Fukui": "Fukui",
+    "Yamanashi": "Yamanashi",
+    "Nagano": "Nagano",
+    "Gifu": "Gifu",
+    "Shizuoka": "Shizuoka",
+    "Aichi": "Aichi",
+    "Mie": "Mie",
+    "Shiga": "Shiga",
+    "Kyoto": "Kyoto",
+    "Osaka": "Osaka",
+    "Hyogo": "Hyogo",
+    "Nara": "Nara",
+    "Wakayama": "Wakayama",
+    "Tottori": "Tottori",
+    "Shimane": "Shimane",
+    "Okayama": "Okayama",
+    "Hiroshima": "Hiroshima",
+    "Yamaguchi": "Yamaguchi",
+    "Tokushima": "Tokushima",
+    "Kagawa": "Kagawa",
+    "Ehime": "Ehime",
+    "Kochi": "Kochi",
+    "Fukuoka": "Fukuoka",
+    "Saga": "Saga",
+    "Nagasaki": "Nagasaki",
+    "Kumamoto": "Kumamoto",
+    "Oita": "Oita",
+    "Miyazaki": "Miyazaki",
+    "Kagoshima": "Kagoshima",
+    "Okinawa": "Okinawa"
+  },
+  "weekly": {
+    "title": "Weekly Forecast"
+  },
+  "hourly": {
+    "title": "Hourly Forecast"
+  },
+  
+  "detail": {
+    "title": "{area} Details",
+    "date": "Date:",
+    "weather": "Weather",
+    "temperature": "Temperature:",
+    "precipitation": "Precipitation:",
+    "wind": "Wind speed:"
   }
 }
