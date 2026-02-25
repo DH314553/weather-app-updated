@@ -3,6 +3,9 @@ import { Platform } from 'react-native';
 
 export class City {
   prefecture: string;
+  private static readonly MUNICIPALITY_DATA_URL =
+    process.env.EXPO_PUBLIC_MUNICIPALITY_DATA_URL ||
+    'https://raw.githubusercontent.com/piuccio/open-data-jp-municipalities/master/municipalities.json';
 
   constructor(prefecture: string) {
     this.prefecture = prefecture;
@@ -23,17 +26,20 @@ export class City {
       candidates.push(`${window.location.origin}/proxy?url=${targetUrl}`);
     }
 
-    // 3) 外部フォールバック
-    candidates.push(`https://api.allorigins.win/raw?url=${targetUrl}`);
-    candidates.push(`https://corsproxy.io/?${targetUrl}`);
-
-    // 4) ローカル開発用のExpressプロキシ（未起動時のERR_CONNECTION_REFUSEDノイズを減らすため最後に試す）
+    // 3) ローカル開発用のExpressプロキシ（必要時のみ明示的に有効化）
     if (typeof window !== 'undefined') {
       const host = window.location.hostname;
-      if (host === 'localhost' || host === '127.0.0.1') {
+      const useLocalProxy = process.env.EXPO_PUBLIC_USE_LOCAL_PROXY === '1';
+      if (useLocalProxy && (host === 'localhost' || host === '127.0.0.1')) {
         candidates.push(`http://localhost:3000/proxy?url=${targetUrl}`);
         candidates.push(`http://127.0.0.1:3000/proxy?url=${targetUrl}`);
       }
+    }
+
+    // 4) 公開CORSプロキシ（不安定なので必要時のみ有効化）
+    if (process.env.EXPO_PUBLIC_USE_PUBLIC_PROXY === '1') {
+      candidates.push(`https://api.allorigins.win/raw?url=${targetUrl}`);
+      candidates.push(`https://corsproxy.io/?${targetUrl}`);
     }
 
     return Array.from(new Set(candidates));
@@ -83,6 +89,32 @@ export class City {
     throw new Error('Failed to fetch municipality HTML from all candidates.');
   }
 
+  private async fetchMunicipalitiesFromOpenData(prefecture: string): Promise<{ name: string; kana: string }[]> {
+    try {
+      const response = await this.fetchWithTimeout(City.MUNICIPALITY_DATA_URL, 20000);
+      if (!response.ok) return [];
+      const data = await response.json();
+      if (!Array.isArray(data)) return [];
+
+      const normalize = (v: unknown) => String(v ?? '').trim();
+      const filtered = data.filter((item: any) => normalize(item?.prefecture_kanji) === prefecture);
+      const mapped = filtered
+        .map((item: any) => ({
+          name: normalize(item?.name_kanji || item?.city || item?.name),
+          kana: normalize(item?.name_kana || item?.kana || item?.name_kanji || item?.name),
+        }))
+        .filter((item: { name: string; kana: string }) => item.name.length > 0);
+
+      const uniqueMap = new Map<string, { name: string; kana: string }>();
+      for (const item of mapped) {
+        if (!uniqueMap.has(item.name)) uniqueMap.set(item.name, item);
+      }
+      return Array.from(uniqueMap.values());
+    } catch (_error) {
+      return [];
+    }
+  }
+
   async getMunicipalityDetails(blockArea: string, prefecture: string, regionId: number[], regionCode: number[]): Promise<{ name: string; kana: string }[]> {
     const url = `https://www.j-lis.go.jp/spd/code-address/${blockArea}/cms_1${regionId[0]}141${regionCode[0]}.html`;
     try {
@@ -129,9 +161,16 @@ export class City {
       return Array.from(uniqueMap.values());
   
     } catch (error) {
+      if (Platform.OS === 'web') {
+        const fallback = await this.fetchMunicipalitiesFromOpenData(prefecture);
+        if (fallback.length > 0) {
+          console.warn(`Web fetch failed for J-LIS; fallback dataset used: ${prefecture} (${fallback.length}件)`);
+          return fallback;
+        }
+      }
       console.error('Failed to fetch municipalities:', error);
       if (Platform.OS === 'web') {
-        console.warn('Web fetch failed. If using local dev, run `npm run web:all` (or `npm run proxy` + `npm run web`).');
+        console.warn('Web fetch failed on all sources. Set EXPO_PUBLIC_PROXY_BASE or EXPO_PUBLIC_MUNICIPALITY_DATA_URL if needed.');
       }
       return [];
     }
