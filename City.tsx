@@ -8,25 +8,57 @@ export class City {
     this.prefecture = prefecture;
   }
 
+  private async fetchWithTimeout(url: string, timeoutMs = 12000): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async fetchMunicipalityHtml(url: string): Promise<string> {
+    const candidateUrls = Platform.OS === 'web'
+      ? [
+          url,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+          `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        ]
+      : [url];
+
+    for (const candidate of candidateUrls) {
+      try {
+        const response = await this.fetchWithTimeout(candidate);
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const json = await response.json();
+          const maybeHtml = typeof json?.contents === 'string' ? json.contents : typeof json === 'string' ? json : '';
+          if (maybeHtml.includes('<td>')) return maybeHtml;
+        } else {
+          const text = await response.text();
+          if (text.includes('<td>')) return text;
+        }
+      } catch (_error) {
+        // 次の候補URLで再試行
+      }
+    }
+
+    throw new Error('Failed to fetch municipality HTML from all candidates.');
+  }
+
   async getMunicipalityDetails(blockArea: string, prefecture: string, regionId: number[], regionCode: number[]): Promise<{ name: string; kana: string }[]> {
     const url = `https://www.j-lis.go.jp/spd/code-address/${blockArea}/cms_1${regionId[0]}141${regionCode[0]}.html`;
-    const finalUrl = Platform.OS === 'web' ? `https://api.allorigins.win/get?url=${url}` : url;
     try {
-      const response = await fetch(finalUrl, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-      }); 
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-  
-      let textResponse = "";
-      if (Platform.OS === 'web') {
-        // allorigins経由の場合、JSONの中にデータが入ってくる
-        const jsonResponse = await response.json();
-        textResponse = jsonResponse.contents || '';
-      } else {
-        textResponse = await response.text();
-      }
+      const textResponse = await this.fetchMunicipalityHtml(url);
   
       // 2. 都道府県のセクション（<h1>）を探す
       const prefecturePattern = new RegExp(`<h1>.*?${prefecture}.*?</h1>`, 'i');
