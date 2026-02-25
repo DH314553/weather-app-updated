@@ -1,5 +1,6 @@
 import { WeatherResponse } from '../types/weather';
 import { City } from '../City';
+import { Platform } from 'react-native';
 
 const areaKanjiToRomaji = {
   '北海道内市町村': { region_id: [22], region_name: 'hokkaido', region_code: [79] },
@@ -96,6 +97,88 @@ const transformPrefecture = (prefecture: string) => {
    ✅ 簡易メモリキャッシュ（座標API制限回避）
 ========================================================= */
 const coordinateCache: Record<string, { lat: string; lon: string }> = {};
+const nominatimCache: Record<string, { data: any[]; ts: number }> = {};
+const NOMINATIM_TTL_MS = 6 * 60 * 60 * 1000;
+let lastNominatimRequestAt = 0;
+
+const buildNominatimCandidateUrls = (targetUrl: string): string[] => {
+  if (Platform.OS !== 'web') return [targetUrl];
+
+  const candidates: string[] = [];
+  const envBase = process.env.EXPO_PUBLIC_PROXY_BASE?.replace(/\/$/, '');
+  if (envBase) candidates.push(`${envBase}/proxy?url=${targetUrl}`);
+
+  if (typeof window !== 'undefined') {
+    candidates.push(`${window.location.origin}/api/proxy?url=${targetUrl}`);
+    candidates.push(`${window.location.origin}/proxy?url=${targetUrl}`);
+
+    const host = window.location.hostname;
+    const useLocalProxy = process.env.EXPO_PUBLIC_USE_LOCAL_PROXY === '1';
+    if (useLocalProxy && (host === 'localhost' || host === '127.0.0.1')) {
+      candidates.push(`http://localhost:3000/proxy?url=${targetUrl}`);
+      candidates.push(`http://127.0.0.1:3000/proxy?url=${targetUrl}`);
+    }
+  }
+
+  // 公開CORSプロキシは不安定なため、必要時のみ明示的に有効化する
+  if (process.env.EXPO_PUBLIC_USE_PUBLIC_PROXY === '1') {
+    candidates.push(`https://corsproxy.io/?${targetUrl}`);
+  }
+  return Array.from(new Set(candidates));
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const throttleNominatim = async () => {
+  const now = Date.now();
+  const elapsed = now - lastNominatimRequestAt;
+  if (elapsed < 1100) {
+    await sleep(1100 - elapsed);
+  }
+  lastNominatimRequestAt = Date.now();
+};
+
+const parseNominatimResponse = async (res: Response): Promise<any[]> => {
+  const contentType = res.headers.get('content-type') || '';
+  const body = contentType.includes('application/json') ? await res.json() : await res.text();
+
+  if (Array.isArray(body)) return body;
+  if (typeof body === 'string') {
+    const parsed = JSON.parse(body);
+    if (Array.isArray(parsed)) return parsed;
+  }
+  if (body && typeof body === 'object' && typeof (body as any).contents === 'string') {
+    const parsed = JSON.parse((body as any).contents);
+    if (Array.isArray(parsed)) return parsed;
+  }
+
+  throw new Error('invalid response');
+};
+
+const fetchNominatimWithRetry = async (targetUrl: string, retries = 1) => {
+  const candidateUrls = buildNominatimCandidateUrls(targetUrl);
+  let lastError: any = null;
+
+  for (const candidateUrl of candidateUrls) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        await throttleNominatim();
+        const res = await fetch(candidateUrl);
+        if (res.status === 429) throw new Error('rate_limited');
+        if (!res.ok) throw new Error(`bad status: ${res.status}`);
+        const data = await parseNominatimResponse(res);
+        if (!Array.isArray(data) || data.length === 0) throw new Error('no results');
+        return data;
+      } catch (err) {
+        lastError = err;
+        const backoffMs = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+        await sleep(backoffMs);
+      }
+    }
+  }
+
+  throw lastError;
+};
 
 /* =========================================================
    天気取得（安定版）
@@ -158,6 +241,80 @@ const prefectureRomajiMap: { [key: string]: string } = {
   '沖縄県': 'okinawa'
 };
 
+const normalizeToken = (value: unknown): string =>
+  String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const prefectureBaseName = (prefectureName?: string): string =>
+  (prefectureName || '').replace(/[都道府県]$/, '');
+
+const isPrefectureMatch = (candidate: unknown, prefectureName?: string, prefRomaji?: string | null): boolean => {
+  const raw = String(candidate ?? '');
+  const normalized = normalizeToken(raw);
+  const base = prefectureBaseName(prefectureName);
+  return Boolean(
+    (prefRomaji && normalized.includes(prefRomaji)) ||
+      (prefectureName && raw.includes(prefectureName)) ||
+      (base && raw.includes(base))
+  );
+};
+
+const makeCoordinateCacheKey = (city: string, worldFlag: boolean, prefectureName?: string) =>
+  worldFlag ? `world:${normalizeToken(city)}` : `jp:${prefectureName || ''}:${city}`;
+
+const pickBestOpenMeteoResult = (results: any[], cityRomaji: string, prefectureName?: string, prefRomaji?: string | null) => {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const targetCity = normalizeToken(cityRomaji);
+  const scored = results.map((item) => {
+    let score = 0;
+    const countryCode = normalizeToken(item?.country_code);
+    const itemName = normalizeToken(item?.name);
+    const featureCode = normalizeToken(item?.feature_code);
+
+    if (countryCode === 'jp') score += 30;
+    if (isPrefectureMatch(item?.admin1, prefectureName, prefRomaji)) score += 100;
+    if (isPrefectureMatch(item?.admin2, prefectureName, prefRomaji)) score += 40;
+    if (itemName === targetCity) score += 25;
+    if (itemName.startsWith(targetCity)) score += 10;
+    if (featureCode.startsWith('ppl')) score += 5;
+
+    return { item, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.item || results[0];
+};
+
+const pickBestNominatimResult = (results: any[], cityRomaji: string, prefectureName?: string, prefRomaji?: string | null) => {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const targetCity = normalizeToken(cityRomaji);
+  const scored = results.map((item) => {
+    const address = item?.address || {};
+    const displayName = String(item?.display_name || '');
+    const name = normalizeToken(item?.name);
+    const cityFields = [address.city, address.town, address.village, address.municipality, item?.name];
+    const hasPrefMatch =
+      isPrefectureMatch(address.state, prefectureName, prefRomaji) ||
+      isPrefectureMatch(address.county, prefectureName, prefRomaji) ||
+      isPrefectureMatch(displayName, prefectureName, prefRomaji);
+
+    let score = 0;
+    if (normalizeToken(address.country_code) === 'jp') score += 30;
+    if (hasPrefMatch) score += 100;
+    if (cityFields.some((v: unknown) => normalizeToken(v) === targetCity)) score += 20;
+    if (name.startsWith(targetCity)) score += 8;
+
+    return { item, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.item || results[0];
+};
+
 export const fetchCoordinates = async (
   city: string,
   worldFlag: boolean = false,
@@ -175,9 +332,10 @@ export const fetchCoordinates = async (
   } catch (e) {
     normalizedCity = city;
   }
+  const coordinateCacheKey = makeCoordinateCacheKey(normalizedCity, worldFlag, prefectureName);
 
-  if (coordinateCache[normalizedCity]) {
-    return coordinateCache[normalizedCity];
+  if (coordinateCache[coordinateCacheKey]) {
+    return coordinateCache[coordinateCacheKey];
   }
 
   // // タイムアウト付きフェッチ関数（高速化）
@@ -195,7 +353,7 @@ export const fetchCoordinates = async (
   //   }
   // };
 
-  // 並列API検索関数 — 最初に成功した結果を採用し、他を中断する
+  // Open-Meteoを優先し、失敗時のみNominatimを使う
   const searchCoordinates = async (cityRomaji: string, prefRomaji: string | null, prefectureName: string | undefined): Promise<any> => {
     const controllers: AbortController[] = [];
     const timeoutMs = 20000;
@@ -219,29 +377,40 @@ export const fetchCoordinates = async (
       });
     };
 
-    const promises: Promise<any>[] = [];
+    const openMeteoPromises: Promise<any>[] = [];
 
     const url1 = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityRomaji)}&count=10&language=en&format=json&countryCode=JP`;
-    promises.push(makeFetchPromise(url1, (d) => d && d.results && d.results.length > 0, 'openmeteo1'));
+    openMeteoPromises.push(makeFetchPromise(url1, (d) => d && d.results && d.results.length > 0, 'openmeteo1'));
 
     if (prefRomaji) {
       const url2 = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(`${cityRomaji},${prefRomaji}`)}&count=10&language=en&format=json&countryCode=JP`;
-      promises.push(makeFetchPromise(url2, (d) => d && d.results && d.results.length > 0, 'openmeteo2'));
+      openMeteoPromises.push(makeFetchPromise(url2, (d) => d && d.results && d.results.length > 0, 'openmeteo2'));
     }
 
-    // const nominatimQuery = prefRomaji ? `${cityRomaji}, ${prefectureName}, Japan` : `${cityRomaji}, Japan`;
-    // const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
-    // promises.push(makeFetchPromise(urlN, (d) => Array.isArray(d) && d.length > 0, 'nominatim'));
+    const nominatimQuery = prefRomaji ? `${cityRomaji}, ${prefectureName}, Japan` : `${cityRomaji}, Japan`;
+
+    // NominatimのターゲットURL
+    const targetUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
+    const cacheKey = nominatimQuery;
 
     try {
-      // Promise.any は最初に成功した promise を返す（全て失敗すると reject）
-      const winner = await Promise.any(promises);
-      // 成功したら他のリクエストを中止
+      const winner = await Promise.any(openMeteoPromises);
       controllers.forEach((c) => c.abort());
       return winner;
-    } catch (e) {
-      // 全て失敗
+    } catch (_openMeteoError) {
       controllers.forEach((c) => c.abort());
+    }
+
+    const cached = nominatimCache[cacheKey];
+    if (cached && Date.now() - cached.ts < NOMINATIM_TTL_MS) {
+      return { source: 'nominatim', data: cached.data };
+    }
+
+    try {
+      const data = await fetchNominatimWithRetry(targetUrl);
+      nominatimCache[cacheKey] = { data, ts: Date.now() };
+      return { source: 'nominatim', data };
+    } catch (_nominatimError) {
       return null;
     }
   };
@@ -259,18 +428,6 @@ export const fetchCoordinates = async (
       data = await response.json();
     } else {
       // 日本国内の市町村はローマ字に変換して検索
-        // 正規化: 「○市○区」は「○市」にまとめ、東京都の区は全て「東京23区」にまとめる
-        let normalizedCity = city;
-        try {
-          if (normalizedCity.includes('市') && normalizedCity.includes('区')) {
-            normalizedCity = normalizedCity.substring(0, normalizedCity.indexOf('市') + 1);
-          } else if (prefectureName && prefectureName.includes('東京') && normalizedCity.includes('区')) {
-            normalizedCity = '東京23区';
-          }
-        } catch (e) {
-          // 正規化失敗時は元のcityを使用
-          normalizedCity = city;
-        }
 
         // 検索用のローマ字（東京都23区は'tokyo'にマップ）
         let cityRomaji: string;
@@ -290,19 +447,23 @@ export const fetchCoordinates = async (
         console.log(`✅ ${searchResult.source} success for: ${city}`);
         if (searchResult.source === 'nominatim') {
           // Nominatimの結果を使用
+          const best = pickBestNominatimResult(searchResult.data, cityRomaji, prefectureName, prefRomaji) || searchResult.data[0];
           const result = {
-            lat: searchResult.data[0].lat,
-            lon: searchResult.data[0].lon,
+            lat: best.lat,
+            lon: best.lon,
           };
-          coordinateCache[normalizedCity] = result;
+          coordinateCache[coordinateCacheKey] = result;
           return result;
         } else {
           // Open-Meteoの結果を使用
+          const best =
+            pickBestOpenMeteoResult(searchResult.data.results, cityRomaji, prefectureName, prefRomaji) ||
+            searchResult.data.results[0];
           const result = {
-            lat: searchResult.data.results[0].latitude.toString(),
-            lon: searchResult.data.results[0].longitude.toString(),
+            lat: best.latitude.toString(),
+            lon: best.longitude.toString(),
           };
-          coordinateCache[normalizedCity] = result;
+          coordinateCache[coordinateCacheKey] = result;
           return result;
         }
       }
@@ -319,7 +480,7 @@ export const fetchCoordinates = async (
           lat: prefectureCoords.lat,
           lon: prefectureCoords.lon || prefectureCoords.lng || '',
         };
-        coordinateCache[normalizedCity] = fallbackResult;
+        coordinateCache[coordinateCacheKey] = fallbackResult;
         return fallbackResult;
       }
       throw new Error(`No coordinates found for: ${city}`);
@@ -330,7 +491,7 @@ export const fetchCoordinates = async (
       lon: data.results[0].longitude.toString(),
     };
 
-    coordinateCache[normalizedCity] = result;
+    coordinateCache[coordinateCacheKey] = result;
     return result;
   } catch (error) {
     // 日本国内検索で失敗した場合、都道府県座標をフォールバック

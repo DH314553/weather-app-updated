@@ -8,25 +8,85 @@ export class City {
     this.prefecture = prefecture;
   }
 
+  private buildCandidateUrls(targetUrl: string): string[] {
+    if (Platform.OS !== 'web') return [targetUrl];
+
+    const candidates: string[] = [];
+
+    // 1) 明示設定されたプロキシ
+    const envBase = process.env.EXPO_PUBLIC_PROXY_BASE?.replace(/\/$/, '');
+    if (envBase) candidates.push(`${envBase}/proxy?url=${targetUrl}`);
+
+    // 2) 同一オリジン配下のAPI（本番/Vercel想定）
+    if (typeof window !== 'undefined') {
+      candidates.push(`${window.location.origin}/api/proxy?url=${targetUrl}`);
+      candidates.push(`${window.location.origin}/proxy?url=${targetUrl}`);
+    }
+
+    // 3) 外部フォールバック
+    candidates.push(`https://api.allorigins.win/raw?url=${targetUrl}`);
+    candidates.push(`https://corsproxy.io/?${targetUrl}`);
+
+    // 4) ローカル開発用のExpressプロキシ（未起動時のERR_CONNECTION_REFUSEDノイズを減らすため最後に試す）
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        candidates.push(`http://localhost:3000/proxy?url=${targetUrl}`);
+        candidates.push(`http://127.0.0.1:3000/proxy?url=${targetUrl}`);
+      }
+    }
+
+    return Array.from(new Set(candidates));
+  }
+
+  private async fetchWithTimeout(url: string, timeoutMs = 12000): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async fetchMunicipalityHtml(url: string): Promise<string> {
+    const candidateUrls = this.buildCandidateUrls(url);
+
+    for (const candidate of candidateUrls) {
+      try {
+        const response = await this.fetchWithTimeout(candidate);
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          try {
+            const json = await response.json();
+            const maybeHtml = typeof json?.contents === 'string' ? json.contents : typeof json === 'string' ? json : '';
+            if (maybeHtml.includes('<td>')) return maybeHtml;
+          } catch (_jsonError) {
+            // JSONとして読めないケースは無視して次候補へ
+          }
+        } else {
+          const text = await response.text();
+          if (text.includes('<td>')) return text;
+        }
+      } catch (_error) {
+        // 次の候補URLで再試行
+      }
+    }
+
+    throw new Error('Failed to fetch municipality HTML from all candidates.');
+  }
+
   async getMunicipalityDetails(blockArea: string, prefecture: string, regionId: number[], regionCode: number[]): Promise<{ name: string; kana: string }[]> {
     const url = `https://www.j-lis.go.jp/spd/code-address/${blockArea}/cms_1${regionId[0]}141${regionCode[0]}.html`;
-    const finalUrl = Platform.OS === 'web' ? `https://api.allorigins.win/get?url=${url}` : url;
     try {
-      const response = await fetch(finalUrl, {
-      headers: { 
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-      }); 
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-  
-      let textResponse = "";
-      if (Platform.OS === 'web') {
-        // allorigins経由の場合、JSONの中にデータが入ってくる
-        const jsonResponse = await response.json();
-        textResponse = jsonResponse.contents || '';
-      } else {
-        textResponse = await response.text();
-      }
+      const textResponse = await this.fetchMunicipalityHtml(url);
   
       // 2. 都道府県のセクション（<h1>）を探す
       const prefecturePattern = new RegExp(`<h1>.*?${prefecture}.*?</h1>`, 'i');
@@ -70,6 +130,9 @@ export class City {
   
     } catch (error) {
       console.error('Failed to fetch municipalities:', error);
+      if (Platform.OS === 'web') {
+        console.warn('Web fetch failed. If using local dev, run `npm run web:all` (or `npm run proxy` + `npm run web`).');
+      }
       return [];
     }
   }
