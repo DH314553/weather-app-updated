@@ -195,26 +195,16 @@ export default function HomeScreen() {
       if (Platform.OS === 'web') {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            list = parsed;
-            console.log(`🌐 Webキャッシュ読込完了: ${selectedPrefecture.name}`);
-          } else {
-            localStorage.removeItem(cacheKey);
-          }
+          list = JSON.parse(cached);
+          console.log(`🌐 Webキャッシュ読込完了: ${selectedPrefecture.name}`);
         }
       } else {
         const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
         const fileInfo = await FileSystem.getInfoAsync(fileUri);
         if (fileInfo.exists) {
           const jsonString = await FileSystem.readAsStringAsync(fileUri);
-          const parsed = JSON.parse(jsonString)?.municipalities;
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            list = parsed;
-            console.log(`📂 アプリキャッシュ読込完了: ${selectedPrefecture.name}`);
-          } else {
-            await FileSystem.deleteAsync(fileUri, { idempotent: true });
-          }
+          list = JSON.parse(jsonString).municipalities;
+          console.log(`📂 アプリキャッシュ読込完了: ${selectedPrefecture.name}`);
         }
       }
   
@@ -263,13 +253,11 @@ export default function HomeScreen() {
         }
   
         // --- 保存処理のWeb/アプリ分岐 ---
-        if (list.length > 0) {
-          if (Platform.OS === 'web') {
-            localStorage.setItem(cacheKey, JSON.stringify(list));
-          } else {
-            const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
-            await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: list }));
-          }
+        if (Platform.OS === 'web') {
+          localStorage.setItem(cacheKey, JSON.stringify(list));
+        } else {
+          const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
+          await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: list }));
         }
       }
   
