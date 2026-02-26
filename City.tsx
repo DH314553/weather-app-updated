@@ -16,33 +16,33 @@ export class City {
 
     const candidates: string[] = [];
     const encodedTargetUrl = encodeURIComponent(targetUrl);
-    const host = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const useLocalProxy = process.env.EXPO_PUBLIC_USE_LOCAL_PROXY !== '0';
-    const tryDirectWebFetch = process.env.EXPO_PUBLIC_TRY_DIRECT_WEB_FETCH === '1';
+    // const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    // const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    // const useLocalProxy = process.env.EXPO_PUBLIC_USE_LOCAL_PROXY !== '0';
+    // const tryDirectWebFetch = process.env.EXPO_PUBLIC_TRY_DIRECT_WEB_FETCH === '1';
 
-    // 0) 直接アクセス（localhostではCORSエラーを避けるため既定で無効）
-    if (!isLocalhost || tryDirectWebFetch) {
-      candidates.push(targetUrl);
-    }
+    // // 0) 直接アクセス（CORSエラーを避けるため既定で無効。必要時のみENVで有効化）
+    // if (tryDirectWebFetch) {
+    //   candidates.push(targetUrl);
+    // }
 
-    // 1) 明示設定されたプロキシ
-    const envBase = process.env.EXPO_PUBLIC_PROXY_BASE?.replace(/\/$/, '');
-    if (envBase) candidates.push(`${envBase}/proxy?url=${encodedTargetUrl}`);
+    // // 1) 明示設定されたプロキシ
+    // const envBase = process.env.EXPO_PUBLIC_PROXY_BASE?.replace(/\/$/, '');
+    // if (envBase) candidates.push(`${envBase}/proxy?url=${encodedTargetUrl}`);
 
-    // 2) 同一オリジン配下のAPI（本番/Vercel想定）
-    if (typeof window !== 'undefined') {
-      candidates.push(`${window.location.origin}/api/proxy?url=${encodedTargetUrl}`);
-      candidates.push(`${window.location.origin}/proxy?url=${encodedTargetUrl}`);
-    }
+    // // 2) 同一オリジン配下のAPI（本番/Vercel想定）
+    // if (typeof window !== 'undefined') {
+    //   candidates.push(`${window.location.origin}/api/proxy?url=${encodedTargetUrl}`);
+    //   candidates.push(`${window.location.origin}/proxy?url=${encodedTargetUrl}`);
+    // }
 
-    // 3) ローカル開発用のExpressプロキシ（必要時のみ明示的に有効化）
-    if (typeof window !== 'undefined') {
-      if (useLocalProxy && isLocalhost) {
-        candidates.push(`http://localhost:3000/proxy?url=${encodedTargetUrl}`);
-        candidates.push(`http://127.0.0.1:3000/proxy?url=${encodedTargetUrl}`);
-      }
-    }
+    // // 3) ローカル開発用のExpressプロキシ（必要時のみ明示的に有効化）
+    // if (typeof window !== 'undefined') {
+    //   if (useLocalProxy && isLocalhost) {
+    //     candidates.push(`http://localhost:3000/proxy?url=${encodedTargetUrl}`);
+    //     candidates.push(`http://127.0.0.1:3000/proxy?url=${encodedTargetUrl}`);
+    //   }
+    // }
 
     // 4) 公開CORSプロキシ（不安定なので必要時のみ有効化）
     if (process.env.EXPO_PUBLIC_USE_PUBLIC_PROXY === '1') {
@@ -54,6 +54,15 @@ export class City {
   }
 
   private async fetchWithTimeout(url: string, timeoutMs = 12000): Promise<Response> {
+    // WebでJ-LIS直アクセスするとCORSエラーが必ず発生するため、明示有効時のみ許可
+    if (
+      Platform.OS === 'web' &&
+      /^https:\/\/www\.j-lis\.go\.jp\//.test(url) &&
+      process.env.EXPO_PUBLIC_TRY_DIRECT_WEB_FETCH !== '1'
+    ) {
+      throw new Error('Direct J-LIS fetch blocked on web (CORS). Use proxy candidates.');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -161,7 +170,9 @@ export class City {
     const fallbackToOpenData = async (reason: string) => {
       const fallback = await this.fetchMunicipalitiesFromOpenData(prefecture);
       if (fallback.length > 0) {
-        console.warn(`Municipality fallback used (${Platform.OS}): ${prefecture} (${fallback.length}件) - ${reason}`);
+        if (process.env.EXPO_PUBLIC_DEBUG_MUNICIPALITY === '1') {
+          console.info(`Municipality fallback used (${Platform.OS}): ${prefecture} (${fallback.length}件) - ${reason}`);
+        }
         return fallback;
       }
       return [];
