@@ -247,6 +247,11 @@ const normalizeToken = (value: unknown): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
+const buildCityTokens = (...values: Array<string | null | undefined>): string[] => {
+  const tokens = values.map((value) => normalizeToken(value)).filter(Boolean);
+  return Array.from(new Set(tokens));
+};
+
 const prefectureBaseName = (prefectureName?: string): string =>
   (prefectureName || '').replace(/[都道府県]$/, '');
 
@@ -264,10 +269,16 @@ const isPrefectureMatch = (candidate: unknown, prefectureName?: string, prefRoma
 const makeCoordinateCacheKey = (city: string, worldFlag: boolean, prefectureName?: string) =>
   worldFlag ? `world:${normalizeToken(city)}` : `jp:${prefectureName || ''}:${city}`;
 
-const pickBestOpenMeteoResult = (results: any[], cityRomaji: string, prefectureName?: string, prefRomaji?: string | null) => {
+const pickBestOpenMeteoResult = (
+  results: any[],
+  cityRomaji: string,
+  cityJa?: string,
+  prefectureName?: string,
+  prefRomaji?: string | null
+) => {
   if (!Array.isArray(results) || results.length === 0) return null;
 
-  const targetCity = normalizeToken(cityRomaji);
+  const targetTokens = buildCityTokens(cityRomaji, cityJa);
   const scored = results.map((item) => {
     let score = 0;
     const countryCode = normalizeToken(item?.country_code);
@@ -277,8 +288,8 @@ const pickBestOpenMeteoResult = (results: any[], cityRomaji: string, prefectureN
     if (countryCode === 'jp') score += 30;
     if (isPrefectureMatch(item?.admin1, prefectureName, prefRomaji)) score += 100;
     if (isPrefectureMatch(item?.admin2, prefectureName, prefRomaji)) score += 40;
-    if (itemName === targetCity) score += 25;
-    if (itemName.startsWith(targetCity)) score += 10;
+    if (targetTokens.some((token) => itemName === token)) score += 25;
+    if (targetTokens.some((token) => itemName.startsWith(token))) score += 10;
     if (featureCode.startsWith('ppl')) score += 5;
 
     return { item, score };
@@ -288,10 +299,16 @@ const pickBestOpenMeteoResult = (results: any[], cityRomaji: string, prefectureN
   return scored[0]?.item || results[0];
 };
 
-const pickBestNominatimResult = (results: any[], cityRomaji: string, prefectureName?: string, prefRomaji?: string | null) => {
+const pickBestNominatimResult = (
+  results: any[],
+  cityRomaji: string,
+  cityJa?: string,
+  prefectureName?: string,
+  prefRomaji?: string | null
+) => {
   if (!Array.isArray(results) || results.length === 0) return null;
 
-  const targetCity = normalizeToken(cityRomaji);
+  const targetTokens = buildCityTokens(cityRomaji, cityJa);
   const scored = results.map((item) => {
     const address = item?.address || {};
     const displayName = String(item?.display_name || '');
@@ -305,8 +322,8 @@ const pickBestNominatimResult = (results: any[], cityRomaji: string, prefectureN
     let score = 0;
     if (normalizeToken(address.country_code) === 'jp') score += 30;
     if (hasPrefMatch) score += 100;
-    if (cityFields.some((v: unknown) => normalizeToken(v) === targetCity)) score += 20;
-    if (name.startsWith(targetCity)) score += 8;
+    if (cityFields.some((v: unknown) => targetTokens.some((token) => normalizeToken(v) === token))) score += 20;
+    if (targetTokens.some((token) => name.startsWith(token))) score += 8;
 
     return { item, score };
   });
@@ -354,7 +371,12 @@ export const fetchCoordinates = async (
   // };
 
   // Open-Meteoを優先し、失敗時のみNominatimを使う
-  const searchCoordinates = async (cityRomaji: string, prefRomaji: string | null, prefectureName: string | undefined): Promise<any> => {
+  const searchCoordinates = async (
+    cityRomaji: string,
+    cityJa: string,
+    prefRomaji: string | null,
+    prefectureName: string | undefined
+  ): Promise<any> => {
     const controllers: AbortController[] = [];
     const timeoutMs = 20000;
 
@@ -379,40 +401,57 @@ export const fetchCoordinates = async (
 
     const openMeteoPromises: Promise<any>[] = [];
 
-    const url1 = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityRomaji)}&count=10&language=en&format=json&countryCode=JP`;
-    openMeteoPromises.push(makeFetchPromise(url1, (d) => d && d.results && d.results.length > 0, 'openmeteo1'));
+    const addOpenMeteoQuery = (name: string, tag: string) => {
+      if (!name) return;
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=10&language=en&format=json&countryCode=JP`;
+      openMeteoPromises.push(makeFetchPromise(url, (d) => d && d.results && d.results.length > 0, tag));
+    };
 
-    if (prefRomaji) {
-      const url2 = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(`${cityRomaji},${prefRomaji}`)}&count=10&language=en&format=json&countryCode=JP`;
-      openMeteoPromises.push(makeFetchPromise(url2, (d) => d && d.results && d.results.length > 0, 'openmeteo2'));
+    addOpenMeteoQuery(cityRomaji, 'openmeteo1');
+    if (prefRomaji) addOpenMeteoQuery(`${cityRomaji},${prefRomaji}`, 'openmeteo2');
+    if (cityJa) addOpenMeteoQuery(cityJa, 'openmeteo3');
+    if (cityJa && prefectureName) addOpenMeteoQuery(`${cityJa},${prefectureName}`, 'openmeteo4');
+
+    if (openMeteoPromises.length > 0) {
+      try {
+        const winner = await Promise.any(openMeteoPromises);
+        controllers.forEach((c) => c.abort());
+        return winner;
+      } catch (_openMeteoError) {
+        controllers.forEach((c) => c.abort());
+      }
     }
 
-    const nominatimQuery = prefRomaji ? `${cityRomaji}, ${prefectureName}, Japan` : `${cityRomaji}, Japan`;
+    const nominatimQueries: string[] = [];
+    const addNominatimQuery = (value: string) => {
+      if (value && !nominatimQueries.includes(value)) nominatimQueries.push(value);
+    };
 
-    // NominatimのターゲットURL
-    const targetUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
-    const cacheKey = nominatimQuery;
+    if (cityJa && prefectureName) addNominatimQuery(`${cityJa}, ${prefectureName}, Japan`);
+    if (cityJa && prefectureName) addNominatimQuery(`${cityJa}, ${prefectureName}`);
+    if (cityJa) addNominatimQuery(`${cityJa}, Japan`);
+    if (prefRomaji) addNominatimQuery(`${cityRomaji}, ${prefRomaji}, Japan`);
+    if (cityRomaji) addNominatimQuery(`${cityRomaji}, Japan`);
 
-    try {
-      const winner = await Promise.any(openMeteoPromises);
-      controllers.forEach((c) => c.abort());
-      return winner;
-    } catch (_openMeteoError) {
-      controllers.forEach((c) => c.abort());
+    for (const nominatimQuery of nominatimQueries) {
+      const cacheKey = nominatimQuery;
+      const cached = nominatimCache[cacheKey];
+      if (cached && Date.now() - cached.ts < NOMINATIM_TTL_MS) {
+        return { source: 'nominatim', data: cached.data };
+      }
+
+      const targetUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(nominatimQuery)}&format=json&countrycodes=jp&limit=5`;
+
+      try {
+        const data = await fetchNominatimWithRetry(targetUrl);
+        nominatimCache[cacheKey] = { data, ts: Date.now() };
+        return { source: 'nominatim', data };
+      } catch (_nominatimError) {
+        continue;
+      }
     }
 
-    const cached = nominatimCache[cacheKey];
-    if (cached && Date.now() - cached.ts < NOMINATIM_TTL_MS) {
-      return { source: 'nominatim', data: cached.data };
-    }
-
-    try {
-      const data = await fetchNominatimWithRetry(targetUrl);
-      nominatimCache[cacheKey] = { data, ts: Date.now() };
-      return { source: 'nominatim', data };
-    } catch (_nominatimError) {
-      return null;
-    }
+    return null;
   };
 
   try {
@@ -441,13 +480,15 @@ export const fetchCoordinates = async (
         console.log(`🔍 Searching for: ${city} -> normalized: ${normalizedCity} -> ${cityRomaji} (pref: ${prefectureName})`);
 
         // 並列でAPI検索を実行
-        const searchResult = await searchCoordinates(cityRomaji, prefRomaji, prefectureName);
+        const searchResult = await searchCoordinates(cityRomaji, normalizedCity, prefRomaji, prefectureName);
 
       if (searchResult) {
         console.log(`✅ ${searchResult.source} success for: ${city}`);
         if (searchResult.source === 'nominatim') {
           // Nominatimの結果を使用
-          const best = pickBestNominatimResult(searchResult.data, cityRomaji, prefectureName, prefRomaji) || searchResult.data[0];
+          const best =
+            pickBestNominatimResult(searchResult.data, cityRomaji, normalizedCity, prefectureName, prefRomaji) ||
+            searchResult.data[0];
           const result = {
             lat: best.lat,
             lon: best.lon,
@@ -457,7 +498,7 @@ export const fetchCoordinates = async (
         } else {
           // Open-Meteoの結果を使用
           const best =
-            pickBestOpenMeteoResult(searchResult.data.results, cityRomaji, prefectureName, prefRomaji) ||
+            pickBestOpenMeteoResult(searchResult.data.results, cityRomaji, normalizedCity, prefectureName, prefRomaji) ||
             searchResult.data.results[0];
           const result = {
             lat: best.latitude.toString(),

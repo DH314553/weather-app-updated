@@ -81,19 +81,40 @@ Notifications.setNotificationHandler({
 });
 
 const WeatherProgressBar = ({ progress, label }: { progress: number, label: string }) => {
-  const animatedWidth = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const [trackWidth, setTrackWidth] = useState(0);
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+
   useEffect(() => {
-    Animated.timing(animatedWidth, { toValue: progress, duration: 400, useNativeDriver: false }).start();
-  }, [progress]);
+    Animated.timing(progressAnim, { toValue: clampedProgress / 100, duration: 400, useNativeDriver: false }).start();
+  }, [clampedProgress, progressAnim]);
 
   return (
     <View style={styles.progressContainer}>
       <View style={styles.labelRow}>
         <Text style={styles.progressText}>{label}</Text>
-        <Text style={styles.percentageText}>{progress}%</Text>
+        <Text style={styles.percentageText}>{clampedProgress}%</Text>
       </View>
-      <View style={styles.progressBarTrack}>
-        <Animated.View style={[styles.progressFill, { width: animatedWidth.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+      <View
+        style={styles.progressBarTrack}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          setTrackWidth(w);
+        }}
+      >
+        <Animated.View
+          style={[
+            styles.progressFill,
+            {
+              width: trackWidth <= 0
+                ? 0
+                : progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, trackWidth],
+                  }),
+            },
+          ]}
+        />
       </View>
     </View>
   );
@@ -109,8 +130,12 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [weatherDataList, setWeatherDataList] = useState<WeatherData[]>([]);
   const [weeklyForecast, setWeeklyForecast] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [selectedWeekly, setSelectedWeekly] = useState<any | null>(null);
+  const [showWeeklyDetail, setShowWeeklyDetail] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [loadingProgressCity, setLoadingProgressCity] = useState(0);
+  const [loadingProgressWeather, setLoadingProgressWeather] = useState(0);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
   const { language: ctxLanguage, changeLanguage } = useLanguage();
   const [language, setLanguageState] = useState<'ja' | 'en'>((getCurrentLanguage() as 'ja' | 'en') || (ctxLanguage as 'ja' | 'en'));
@@ -180,9 +205,9 @@ export default function HomeScreen() {
 
   const loadCities = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoadingCities(true);
       setError(null);
-      setLoadingProgress(10);
+      setLoadingProgressCity(10);
       
       const cityUtil = new City(selectedPrefecture.name);
       const regionInfo = getRegionInfo(selectedPrefecture.name);
@@ -211,7 +236,7 @@ export default function HomeScreen() {
       // --- キャッシュがない場合の取得ロジック ---
       if (list.length === 0) {
         console.log(`🌐 座標と「かな」を再構築中...`);
-        setLoadingProgress(20);
+        setLoadingProgressCity(20);
         
         const fetchedData = await cityUtil.getMunicipalityDetails(
           regionInfo.regionNames[0],
@@ -225,23 +250,32 @@ export default function HomeScreen() {
         for (let i = 0; i < fetchedData.length; i += batchSize) {
           batches.push(fetchedData.slice(i, i + batchSize));
         }
-  
+
         list = [];
+        const totalCount = fetchedData.length;
+        let processedCount = 0;
+        const updateProgress = () => {
+          const ratio = totalCount > 0 ? processedCount / totalCount : 1;
+          const next = 20 + Math.floor(ratio * 80);
+          setLoadingProgressCity(Math.min(99, Math.max(20, next)));
+        };
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
           const batchResults = await Promise.all(
             batch.map(async (item, index) => {
-              const globalIndex = batchIndex * batchSize + index;
-              if (globalIndex % 15 === 0) setLoadingProgress(20 + Math.floor((globalIndex / fetchedData.length) * 60));
-  
               const name = typeof item === 'string' ? item : item.name;
               const kana = item.kana || name;
-  
+
               try {
                 const coords = await fetchCoordinates(kana, false, selectedPrefecture.name, { lat: selectedPrefecture.lat, lng: selectedPrefecture.lng });
                 return { name, kana, lat: coords.lat.toString(), lon: coords.lon.toString() };
               } catch (e) {
                 return { name, kana, lat: selectedPrefecture.lat, lon: selectedPrefecture.lng };
+              } finally {
+                processedCount += 1;
+                if (processedCount % 5 === 0 || processedCount === totalCount) {
+                  updateProgress();
+                }
               }
             })
           );
@@ -263,12 +297,12 @@ export default function HomeScreen() {
   
       setMunicipalities(list);
       if (list.length > 0) setSelectedMunicipality(list[0]);
-      setLoadingProgress(100);
+      setLoadingProgressCity(100);
     } catch (err) {
       console.error(err);
       setError("データ読込エラー");
     } finally {
-      setTimeout(() => setLoading(false), 300);
+      setTimeout(() => setLoadingCities(false), 300);
     }
   }, [selectedPrefecture]);
 
@@ -363,14 +397,16 @@ export default function HomeScreen() {
     let isMounted = true;
     (async () => {
       try {
-        setLoading(true);
+        setLoadingWeather(true);
         setError(null); // 前のエラーをリセット
+        setLoadingProgressWeather(10);
         
         // Web環境ではネットワークの瞬断が起きやすいため、タイムアウト等の考慮が必要な場合があります
         const response: WeatherResponse = await fetchWeatherData(
           selectedMunicipality.lat, 
           selectedMunicipality.lon
         );
+        if (isMounted) setLoadingProgressWeather(60);
   
         // responseが空または期待した構造でない場合のガード
         if (!response || !response.hourly) {
@@ -398,16 +434,24 @@ export default function HomeScreen() {
           latitude: selectedMunicipality.lat,
           longitude: selectedMunicipality.lon,
         }));
+        if (isMounted) setLoadingProgressWeather(85);
   
         // 週間予報の処理
         let weekly: any[] = [];
         try {
           if (response.daily && Array.isArray(response.daily.time)) {
+            const hourlyTimes = response.hourly?.time || [];
+            const hourlyPrecip = response.hourly?.precipitation_probability || [];
             weekly = response.daily.time.map((d: string, i: number) => {
               const max = response.daily.temperature_2m_max?.[i] ?? null;
               const min = response.daily.temperature_2m_min?.[i] ?? null;
               const precip = response.daily.precipitation_probability_max?.[i] ?? 0;
               const wcode = response.daily.weathercode?.[i] ?? 0;
+              const indices = hourlyTimes
+                .map((t: string, idx: number) => (t.startsWith(d) ? idx : -1))
+                .filter((idx: number) => idx >= 0);
+              const precipHourly = indices.map((idx: number) => hourlyPrecip[idx] ?? 0);
+              const precipHours = indices.map((idx: number) => new Date(hourlyTimes[idx]).getHours());
               // Web環境での計算誤差を防ぐため数値を担保
               const avgTemp = (typeof max === 'number' && typeof min === 'number') ? (max + min) / 2 : 0;
               const predicted = predictWeather(wcode, avgTemp, precip, 0);
@@ -420,6 +464,8 @@ export default function HomeScreen() {
                 precipitation: precip,
                 weatherCode: wcode,
                 predictedWeather: predicted,
+                precipHourly,
+                precipHours,
               };
             }).slice(0, 7);
           }
@@ -430,7 +476,7 @@ export default function HomeScreen() {
         if (isMounted) {
           setWeatherDataList(processed);
           setWeeklyForecast(weekly);
-          setLoadingProgress(100);
+          setLoadingProgressWeather(100);
         }
       } catch (err) {
         console.error("Weather fetch error details:", err);
@@ -440,7 +486,7 @@ export default function HomeScreen() {
           setError(errorMsg);
         }
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) setLoadingWeather(false);
       }
     })();
   
@@ -494,7 +540,12 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={true}>
-        {loading && <WeatherProgressBar progress={loadingProgress} label={t('common.loading')} />}
+        {(loadingCities || loadingWeather) && (
+          <WeatherProgressBar
+            progress={loadingCities ? loadingProgressCity : loadingProgressWeather}
+            label={t('common.loading')}
+          />
+        )}
 
         {heroData && (
           <View style={styles.heroCard}>
@@ -555,7 +606,14 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>{t('weekly.title')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weeklyScroll} contentContainerStyle={{ paddingHorizontal: 12 }}>
             {weeklyForecast.length > 0 ? weeklyForecast.map((d, i) => (
-              <View key={i} style={styles.weeklyCard}>
+              <Pressable
+                key={i}
+                style={styles.weeklyCard}
+                onPress={() => {
+                  setSelectedWeekly(d);
+                  setShowWeeklyDetail(true);
+                }}
+              >
                 <View style={styles.weeklyTopRow}>
                   <Text style={styles.weeklyDate}>{d.weekday}</Text>
                   <Text style={styles.weeklyPrecipSmall}>{Math.round(d.precipitation)}%</Text>
@@ -566,7 +624,7 @@ export default function HomeScreen() {
                 <View style={styles.precipTrack}>
                   <View style={[styles.precipFill, { width: `${Math.min(100, Math.round(d.precipitation))}%` }]} />
                 </View>
-              </View>
+              </Pressable>
               )) : <Text style={styles.noDataText}>{t('weather.noData')}</Text>}
           </ScrollView>
         </View>
@@ -598,6 +656,42 @@ export default function HomeScreen() {
                 <Text style={styles.detailValue}>{t('detail.temperature')} {selectedWeather.temperature}°C</Text>
                 <Text style={styles.detailValue}>{t('detail.precipitation')} {selectedWeather.precipitation}%</Text>
                 <Text style={styles.detailValue}>{t('detail.wind')} {selectedWeather.windSpeed}m/s</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showWeeklyDetail} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('weekly.title')}</Text>
+              <Button title={t('common.close')} onPress={() => setShowWeeklyDetail(false)} color="#1976D2" />
+            </View>
+            {selectedWeekly && (
+              <View style={styles.weeklyDetailCard}>
+                <Text style={styles.detailLabel}>{selectedWeekly.weekday}</Text>
+                <View style={styles.weatherDetailRow}>
+                  <MaterialCommunityIcons name={getWeatherIcon(selectedWeekly.predictedWeather)} size={48} color="#FF9800" />
+                  <Text style={styles.detailLargeValue}>{selectedWeekly.predictedWeather}</Text>
+                </View>
+                <Text style={styles.detailValue}>{t('detail.temperature')} {Math.round(selectedWeekly.max)}° / {Math.round(selectedWeekly.min)}°</Text>
+                <Text style={styles.detailValue}>{t('detail.precipitation')} {Math.round(selectedWeekly.precipitation)}%</Text>
+
+                <Text style={styles.chartTitle}>{t('detail.precipitation')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.precipChart}>
+                  {(selectedWeekly.precipHourly || []).map((p: number, idx: number) => (
+                    <View key={idx} style={styles.precipBar}>
+                      <View style={styles.precipBarTrack}>
+                        <View style={[styles.precipBarFill, { height: `${Math.min(100, Math.max(0, Math.round(p)))}%` }]} />
+                      </View>
+                      <Text style={styles.precipBarLabel}>
+                        {(selectedWeekly.precipHours?.[idx] ?? idx) % 24}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
               </View>
             )}
           </View>
@@ -635,6 +729,13 @@ const styles = StyleSheet.create({
   weeklyTempSmall: { fontSize: 12, color: '#777' },
   precipTrack: { width: '100%', height: 6, backgroundColor: '#EEE', borderRadius: 6, marginTop: 8, overflow: 'hidden' },
   precipFill: { height: '100%', backgroundColor: '#1976D2' },
+  weeklyDetailCard: { backgroundColor: '#E3F2FD', borderRadius: 12, padding: 16 },
+  chartTitle: { fontSize: 14, fontWeight: '700', color: '#1565C0', marginTop: 10, marginBottom: 6 },
+  precipChart: { alignItems: 'flex-end', paddingVertical: 6 },
+  precipBar: { width: 22, marginRight: 6, alignItems: 'center' },
+  precipBarTrack: { width: '100%', height: 80, backgroundColor: '#E0E0E0', borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
+  precipBarFill: { width: '100%', backgroundColor: '#1976D2' },
+  precipBarLabel: { fontSize: 10, color: '#555', textAlign: 'center', marginTop: 4 },
   progressContainer: { width: '100%', paddingHorizontal: 20, marginVertical: 15 },
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   progressText: { fontSize: 14, color: '#666' },
