@@ -45,25 +45,30 @@ export default function WorldWeatherScreen() {
       setLoading(true);
       const weatherResponse = await fetchWeatherData(lat, lng);
 
-      if (!weatherResponse || !weatherResponse.current) {
+      if (!weatherResponse || !weatherResponse.hourly || !Array.isArray(weatherResponse.hourly.time)) {
         throw new Error(t('world.errors.fetchFailed', { city: cityName }));
       }
 
-      const current = weatherResponse.current;
       const hourly = weatherResponse.hourly;
+      const current = (weatherResponse as any).current;
 
-      if (!hourly) {
-        throw new Error(t('weather.fetchError'));
+      // current がないレスポンスでも hourly から現在時刻に最も近いデータを採用する
+      const nowMs = Date.now();
+      let nearestIndex = 0;
+      let minDiff = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < hourly.time.length; i++) {
+        const tms = new Date(hourly.time[i]).getTime();
+        const diff = Math.abs(tms - nowMs);
+        if (diff < minDiff) {
+          minDiff = diff;
+          nearestIndex = i;
+        }
       }
 
-      const currentTime = new Date();
-      const hourIndex = currentTime.getHours();
-
-      const temp = (current as any).temperature_2m ?? 0;
-      const weatherCode = (current as any).weather_code ?? 0;
-      const windSpeed = (current as any).wind_speed_10m ?? 0;
-      const precipitation = (hourly.precipitation_probability as any)?.[hourIndex] ?? 0;
-      const humidity = (current as any).relative_humidity_2m ?? 0;
+      const temp = (current as any)?.temperature_2m ?? (hourly.temperature_2m as any)?.[nearestIndex] ?? 0;
+      const weatherCode = (current as any)?.weather_code ?? (hourly.weather_code as any)?.[nearestIndex] ?? 0;
+      const windSpeed = (current as any)?.wind_speed_10m ?? (hourly.wind_speed_10m as any)?.[nearestIndex] ?? 0;
+      const precipitation = (hourly.precipitation_probability as any)?.[nearestIndex] ?? 0;
 
       const predictedWeatherStr = predictWeather(weatherCode, temp, precipitation, windSpeed);
 
