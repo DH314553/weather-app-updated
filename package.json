@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/config": "^10.0.8",
+    "@expo/metro-runtime": "~4.0.1",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-firebase/analytics": "21.14.0",
     "@react-native-firebase/app": "21.14.0",
@@ -31,7 +32,6 @@
     "expo-modules-core": "~2.2.3",
     "expo-network": "~7.0.5",
     "expo-notifications": "~0.29.14",
-    "expo-splash-screen": "~0.29.24",
     "expo-status-bar": "~2.0.1",
     "expo-task-manager": "^12.0.5",
     "express": "^5.2.1",
