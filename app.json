@@ -15,13 +15,10 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/efb2f5b3-2d4a-4f5c-8f12-1b3e5c8e4f12"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["assets/**"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.daisaku31469.weatherapp",
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": ["fetch", "remote-notification"]
       }
@@ -105,7 +102,7 @@
         ]
       }
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "plugins": [
       [
         "expo-location",
@@ -117,10 +114,7 @@
         "expo-notifications",
         {
           "icon": "./assets/weather.png",
-          "color": "#1976D2",
-          "sounds": [
-            "default"
-          ]
+          "color": "#1976D2"
         }
       ],
       "expo-background-fetch",
@@ -131,7 +125,8 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": true,
-            "shrinkResources": true
+            "shrinkResources": true,
+            "enableSeparateBuildPerCPUArchitecture": true
           }
         }
       ]

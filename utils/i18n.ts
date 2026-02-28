@@ -23,29 +23,35 @@ const translations: { [key in Language]: Translations } = {
   ko,
 };
 
+const normalizeLanguageCode = (value?: string | null): Language | null => {
+  if (!value) return null;
+  const code = value.toLowerCase().replace('_', '-');
+  if (code.startsWith('ja')) return 'ja';
+  if (code.startsWith('en')) return 'en';
+  if (code.startsWith('es')) return 'es';
+  if (code.startsWith('fr')) return 'fr';
+  if (code.startsWith('de')) return 'de';
+  if (code.startsWith('zh')) return 'zh';
+  if (code.startsWith('ko')) return 'ko';
+  return null;
+};
+
 // Detect system language
 const getSystemLanguage = (): Language => {
   const locales = Localization.getLocales();
   if (!locales || locales.length === 0) {
     return 'ja';
   }
-  const langCode = locales[0]?.languageCode;
-  
-  // Map language codes to supported languages
-  const languageMap: { [key: string]: Language } = {
-    'ja': 'ja',
-    'en': 'en',
-    'es': 'es',
-    'fr': 'fr',
-    'de': 'de',
-    'zh': 'zh',
-    'ko': 'ko',
-  };
-  
-  return (langCode && languageMap[langCode]) || 'ja';
+  const preferred = locales[0];
+  return (
+    normalizeLanguageCode(preferred?.languageTag) ||
+    normalizeLanguageCode(preferred?.languageCode) ||
+    'ja'
+  );
 };
 
 let currentLanguage: Language = getSystemLanguage();
+const missingTranslationWarnings = new Set<string>();
 
 // Helper to get nested translation
 const getNestedValue = (obj: any, path: string): any => {
@@ -57,9 +63,20 @@ const getNestedValue = (obj: any, path: string): any => {
 // Main translation function
 export const t = (key: string, params?: { [k: string]: any }, defaultValue?: string): string => {
   try {
-    let value = getNestedValue(translations[currentLanguage], key);
+    const fallbackLanguages: Language[] = [currentLanguage, 'ja', 'en'];
+    let value: any = undefined;
+
+    for (const lang of fallbackLanguages) {
+      value = getNestedValue(translations[lang], key);
+      if (value !== undefined && value !== null) break;
+    }
+
     if (value === undefined || value === null) {
-      console.warn(`Translation key not found: ${key} for language: ${currentLanguage}`);
+      const warningKey = `${currentLanguage}:${key}`;
+      if (!missingTranslationWarnings.has(warningKey)) {
+        missingTranslationWarnings.add(warningKey);
+        console.warn(`Translation key not found: ${key} for language: ${currentLanguage}`);
+      }
       value = defaultValue || key;
     }
 
@@ -91,6 +108,10 @@ export const getCurrentLanguage = (): Language => {
   return currentLanguage;
 };
 
+export const resolveLanguage = (candidate?: string | null): Language => {
+  return normalizeLanguageCode(candidate) || 'ja';
+};
+
 // Get all supported languages
 export const getSupportedLanguages = (): Language[] => {
   return Object.keys(translations) as Language[];
@@ -101,4 +122,5 @@ export default {
   setLanguage,
   getCurrentLanguage,
   getSupportedLanguages,
+  resolveLanguage,
 };

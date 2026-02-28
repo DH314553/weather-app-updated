@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'weather-app'
+rootProject.name = '天気予報アプリ(Stogia)'
 
 dependencyResolutionManagement {
   versionCatalogs {

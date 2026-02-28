@@ -258,6 +258,100 @@ const normalizeToken = (value: unknown): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
+const katakanaToHiragana = (value: string): string =>
+  value.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+
+const normalizeWorldAliasKey = (value: string): string =>
+  katakanaToHiragana(String(value || ''))
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[ーｰ]/g, '');
+
+const WORLD_CITY_ALIASES: Record<string, string> = {
+  'にゅーよーく': 'New York',
+  'にゆよく': 'New York',
+  'ろんどん': 'London',
+  'とうきょう': 'Tokyo',
+  'とーきょー': 'Tokyo',
+  'ぱり': 'Paris',
+  'しどにー': 'Sydney',
+  'しどに': 'Sydney',
+  'どばい': 'Dubai',
+  'しんがぽーる': 'Singapore',
+  'しんがぽる': 'Singapore',
+  'ばんこく': 'Bangkok',
+  'そうる': 'Seoul',
+  'ばるせろな': 'Barcelona',
+  'とろんと': 'Toronto',
+  'べるりん': 'Berlin',
+  'ろさんぜるす': 'Los Angeles',
+  'さんふらんしすこ': 'San Francisco',
+  'しあん': 'Xi an',
+  'しあんし': 'Xi an',
+  'ぺきん': 'Beijing',
+  'しゃんはい': 'Shanghai',
+  'たいぺい': 'Taipei',
+  'ほんこん': 'Hong Kong',
+  'でりー': 'Delhi',
+  'むんばい': 'Mumbai',
+  'いすたんぶーる': 'Istanbul',
+  'いすたんふる': 'Istanbul',
+  'もすくわ': 'Moscow',
+  'ろーま': 'Rome',
+  'まどりーど': 'Madrid',
+  'あむすてるだむ': 'Amsterdam',
+  'ぶりゅっせる': 'Brussels',
+  'うぃーん': 'Vienna',
+  'ちゅーりひ': 'Zurich',
+  'じゅねーぶ': 'Geneva',
+  'すとっくほるむ': 'Stockholm',
+  'おすろ': 'Oslo',
+  'こぺんはーげん': 'Copenhagen',
+  'へるしんき': 'Helsinki',
+  'りすぼん': 'Lisbon',
+  'あてね': 'Athens',
+  'かいろ': 'Cairo',
+  'よはねすぶるぐ': 'Johannesburg',
+  'ないろび': 'Nairobi',
+  'しどにい': 'Sydney',
+  'めるぼるん': 'Melbourne',
+  'おーくらんど': 'Auckland',
+  'さおぱうろ': 'Sao Paulo',
+  'りおでじゃねいろ': 'Rio de Janeiro',
+  'めきしこしてぃ': 'Mexico City',
+  'ばんくーばー': 'Vancouver',
+  'しあとる': 'Seattle',
+  'わしんとん': 'Washington',
+  'ぼすとん': 'Boston',
+  // US states / regions
+  'てきさす': 'Texas',
+  'てきさすしゅう': 'Texas',
+  'かりふぉるにあ': 'California',
+  'かりふぉるにあしゅう': 'California',
+  'にゅーよーくしゅう': 'New York State',
+  'ふろりだ': 'Florida',
+  'わしんとんしゅう': 'Washington State',
+  'はわい': 'Hawaii',
+  // countries / broad areas
+  'あめりか': 'United States',
+  'いぎりす': 'United Kingdom',
+  'ふらんす': 'France',
+  'どいつ': 'Germany',
+  'いたりあ': 'Italy',
+  'すぺいん': 'Spain',
+  'かんこく': 'South Korea',
+  'ちゅうごく': 'China',
+  'たいわん': 'Taiwan',
+  'たい': 'Thailand',
+  'べとなむ': 'Vietnam',
+  'いんど': 'India',
+  'おーすとらりあ': 'Australia',
+  'にゅーじーらんど': 'New Zealand',
+  'かなだ': 'Canada',
+  'ぶらじる': 'Brazil',
+  'めきしこ': 'Mexico',
+};
+
 const buildCityTokens = (...values: Array<string | null | undefined>): string[] => {
   const tokens = values.map((value) => normalizeToken(value)).filter(Boolean);
   return Array.from(new Set(tokens));
@@ -470,30 +564,76 @@ export const fetchCoordinates = async (
     let data: any;
 
     if (worldFlag) {
-      // 世界検索では英字の都市名を壊さない。日本語入力のみローマ字化する。
+      // 世界検索は辞書 + 多言語ジオコーディングで広くカバーする。
       const hasJapanese = /[\u3040-\u30ff\u3400-\u9faf]/.test(city);
       const raw = city.trim();
+      const aliasKey = normalizeWorldAliasKey(raw);
+      const aliasQuery = WORLD_CITY_ALIASES[aliasKey] || '';
       const romaji = hasJapanese ? toRomaji(city) : '';
-      const worldQueries = Array.from(new Set([raw, romaji].filter(Boolean)));
+      const rawNoSpace = raw.replace(/\s+/g, '');
+      const worldQueries = Array.from(new Set([raw, rawNoSpace, aliasQuery, romaji].filter(Boolean)));
+      const languages = hasJapanese ? ['ja', 'en'] : ['en', 'ja'];
       let lastWorldError: any = null;
 
       for (const q of worldQueries) {
-        try {
-          url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`;
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`Status: ${response.status}`);
-          const result = await response.json();
-          if (result?.results?.length) {
-            data = result;
-            break;
+        for (const lang of languages) {
+          try {
+            url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=20&language=${lang}&format=json`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Status: ${response.status}`);
+            const result = await response.json();
+            if (Array.isArray(result?.results) && result.results.length > 0) {
+              const best = result.results.slice().sort((a: any, b: any) => {
+                const aPop = Number(a?.population || 0);
+                const bPop = Number(b?.population || 0);
+                const aName = normalizeToken(a?.name);
+                const bName = normalizeToken(b?.name);
+                const qNorm = normalizeToken(q);
+                const aScore = (aName === qNorm ? 100 : 0) + (aName.startsWith(qNorm) ? 20 : 0) + aPop / 1_000_000;
+                const bScore = (bName === qNorm ? 100 : 0) + (bName.startsWith(qNorm) ? 20 : 0) + bPop / 1_000_000;
+                return bScore - aScore;
+              })[0];
+              const resultCoordinates = {
+                lat: String(best.latitude),
+                lon: String(best.longitude),
+              };
+              coordinateCache[coordinateCacheKey] = resultCoordinates;
+              return resultCoordinates;
+            }
+            lastWorldError = new Error(`No world results (${q}, ${lang})`);
+          } catch (e) {
+            lastWorldError = e;
           }
-          lastWorldError = new Error('No world results');
+        }
+      }
+
+      // Open-Meteoで見つからない場合、Nominatimのグローバル検索へフォールバック
+      for (const q of worldQueries) {
+        try {
+          const targetUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1&accept-language=ja,en`;
+          const nominatimResults = await fetchNominatimWithRetry(targetUrl);
+          if (Array.isArray(nominatimResults) && nominatimResults.length > 0) {
+            const best = nominatimResults.slice().sort((a: any, b: any) => {
+              const aImp = Number(a?.importance || 0);
+              const bImp = Number(b?.importance || 0);
+              const aName = normalizeToken(a?.name || a?.display_name);
+              const bName = normalizeToken(b?.name || b?.display_name);
+              const qNorm = normalizeToken(q);
+              const aScore = (aName.includes(qNorm) ? 1 : 0) + aImp;
+              const bScore = (bName.includes(qNorm) ? 1 : 0) + bImp;
+              return bScore - aScore;
+            })[0];
+            const resultCoordinates = { lat: String(best.lat), lon: String(best.lon) };
+            coordinateCache[coordinateCacheKey] = resultCoordinates;
+            return resultCoordinates;
+          }
+          lastWorldError = new Error(`No world results in nominatim (${q})`);
         } catch (e) {
           lastWorldError = e;
         }
       }
 
-      if (!data?.results?.length) throw lastWorldError || new Error('No world results');
+      throw lastWorldError || new Error('No world results');
     } else {
       // 日本国内の市町村はローマ字に変換して検索
 
