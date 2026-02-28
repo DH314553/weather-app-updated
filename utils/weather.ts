@@ -470,12 +470,30 @@ export const fetchCoordinates = async (
     let data: any;
 
     if (worldFlag) {
-      // 世界の都市はローマ字に変換して検索
-      const cityRomaji = toRomaji(city);
-      url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityRomaji)}&count=10&language=en&format=json`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Status: ${response.status}`);
-      data = await response.json();
+      // 世界検索では英字の都市名を壊さない。日本語入力のみローマ字化する。
+      const hasJapanese = /[\u3040-\u30ff\u3400-\u9faf]/.test(city);
+      const raw = city.trim();
+      const romaji = hasJapanese ? toRomaji(city) : '';
+      const worldQueries = Array.from(new Set([raw, romaji].filter(Boolean)));
+      let lastWorldError: any = null;
+
+      for (const q of worldQueries) {
+        try {
+          url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=en&format=json`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`Status: ${response.status}`);
+          const result = await response.json();
+          if (result?.results?.length) {
+            data = result;
+            break;
+          }
+          lastWorldError = new Error('No world results');
+        } catch (e) {
+          lastWorldError = e;
+        }
+      }
+
+      if (!data?.results?.length) throw lastWorldError || new Error('No world results');
     } else {
       // 日本国内の市町村はローマ字に変換して検索
 
