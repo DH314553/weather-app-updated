@@ -20,6 +20,7 @@ import { t, setLanguage as i18nSetLanguage, getCurrentLanguage } from '../utils/
 import { useLanguage } from '../LanguageContext';
 import { registerBackgroundFetchAsync, setupNotificationsAsync } from '../utils/backgroundTasks';
 import { City } from '../City';
+import { logEvent, logScreenView } from '../utils/analytics';
 
 // --- 型定義 ---
 export type Municipality = { 
@@ -145,6 +146,8 @@ export default function HomeScreen() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hasUserSelectedPrefecture, setHasUserSelectedPrefecture] = useState(false);
   const [hasUserSelectedMunicipality, setHasUserSelectedMunicipality] = useState(false);
+  const coordsLoadingRef = useRef(false);
+  const weatherRequestKeyRef = useRef('');
 
   // Recompute time filter labels when language changes
   const TIME_FILTERS = useMemo(() => [
@@ -203,6 +206,10 @@ export default function HomeScreen() {
 
       // no-op: ensure not to set error during render
 
+  useEffect(() => {
+    logScreenView('Home').catch(() => {});
+  }, []);
+
   const loadCities = useCallback(async () => {
     try {
       setLoadingCities(true);
@@ -214,14 +221,30 @@ export default function HomeScreen() {
       if (!regionInfo?.regionNames?.length) return;
   
       let list: Municipality[] = [];
-      const cacheKey = `municipalities_${selectedPrefecture.name}_v5`;
-  
+      const cacheKey = `municipalities_${selectedPrefecture.name}_v7`;
+      const MIN_REASONABLE_COUNT = 3;
+
+      const persistMunicipalities = async (items: Municipality[]) => {
+        if (Platform.OS === 'web') {
+          localStorage.setItem(cacheKey, JSON.stringify(items));
+        } else {
+          const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
+          await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: items }));
+        }
+      };
+
       // --- キャッシュ読み込みのWeb/アプリ分岐 ---
       if (Platform.OS === 'web') {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
           list = JSON.parse(cached);
-          console.log(`🌐 Webキャッシュ読込完了: ${selectedPrefecture.name}`);
+          if (!Array.isArray(list) || list.length < MIN_REASONABLE_COUNT) {
+            list = [];
+            localStorage.removeItem(cacheKey);
+            console.log(`♻️ Webキャッシュ破棄（件数不足）: ${selectedPrefecture.name}`);
+          } else {
+            console.log(`🌐 Webキャッシュ読込完了: ${selectedPrefecture.name} (${list.length}件)`);
+          }
         }
       } else {
         const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
@@ -229,13 +252,19 @@ export default function HomeScreen() {
         if (fileInfo.exists) {
           const jsonString = await FileSystem.readAsStringAsync(fileUri);
           list = JSON.parse(jsonString).municipalities;
-          console.log(`📂 アプリキャッシュ読込完了: ${selectedPrefecture.name}`);
+          if (!Array.isArray(list) || list.length < MIN_REASONABLE_COUNT) {
+            list = [];
+            await FileSystem.deleteAsync(fileUri, { idempotent: true });
+            console.log(`♻️ アプリキャッシュ破棄（件数不足）: ${selectedPrefecture.name}`);
+          } else {
+            console.log(`📂 アプリキャッシュ読込完了: ${selectedPrefecture.name} (${list.length}件)`);
+          }
         }
       }
   
       // --- キャッシュがない場合の取得ロジック ---
       if (list.length === 0) {
-        console.log(`🌐 座標と「かな」を再構築中...`);
+        console.log(`🌐 「かな」と市町村名を構築中...`);
         setLoadingProgressCity(20);
         
         const fetchedData = await cityUtil.getMunicipalityDetails(
@@ -244,55 +273,29 @@ export default function HomeScreen() {
           regionInfo.regionIds!,
           regionInfo.regionCodes!
         );
+        console.log(`✅ 市町村取得完了: ${selectedPrefecture.name} (${fetchedData.length}件)`);
   
-        const batchSize = 15;
-        const batches = [];
-        for (let i = 0; i < fetchedData.length; i += batchSize) {
-          batches.push(fetchedData.slice(i, i + batchSize));
-        }
-
         list = [];
         const totalCount = fetchedData.length;
-        let processedCount = 0;
-        const updateProgress = () => {
+        const updateProgress = (processedCount: number) => {
           const ratio = totalCount > 0 ? processedCount / totalCount : 1;
           const next = 20 + Math.floor(ratio * 80);
           setLoadingProgressCity(Math.min(99, Math.max(20, next)));
         };
-        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-          const batch = batches[batchIndex];
-          const batchResults = await Promise.all(
-            batch.map(async (item, index) => {
-              const name = typeof item === 'string' ? item : item.name;
-              const kana = item.kana || name;
-
-              try {
-                const coords = await fetchCoordinates(kana, false, selectedPrefecture.name, { lat: selectedPrefecture.lat, lng: selectedPrefecture.lng });
-                return { name, kana, lat: coords.lat.toString(), lon: coords.lon.toString() };
-              } catch (e) {
-                return { name, kana, lat: selectedPrefecture.lat, lon: selectedPrefecture.lng };
-              } finally {
-                processedCount += 1;
-                if (processedCount % 5 === 0 || processedCount === totalCount) {
-                  updateProgress();
-                }
-              }
-            })
-          );
-          list.push(...batchResults);
   
-          if (batchIndex < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 20));
+        for (let i = 0; i < fetchedData.length; i++) {
+          const item = fetchedData[i];
+          const name = typeof item === 'string' ? item : item.name;
+          const kana = item.kana || name;
+          list.push({ name, kana, lat: '', lon: '' });
+  
+          if (i % 200 === 0 || i === fetchedData.length - 1) {
+            updateProgress(i + 1);
+            await new Promise(resolve => setTimeout(resolve, 0));
           }
         }
   
-        // --- 保存処理のWeb/アプリ分岐 ---
-        if (Platform.OS === 'web') {
-          localStorage.setItem(cacheKey, JSON.stringify(list));
-        } else {
-          const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
-          await FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: list }));
-        }
+        await persistMunicipalities(list);
       }
   
       setMunicipalities(list);
@@ -392,11 +395,47 @@ export default function HomeScreen() {
   // --- 天気データ取得 ---
   useEffect(() => {
     // 緯度・経度がない場合は処理を中断
-    if (!selectedMunicipality?.lat || !selectedMunicipality?.lon) return;
+    if (!selectedMunicipality) return;
+    if (!selectedMunicipality?.lat || !selectedMunicipality?.lon) {
+      if (coordsLoadingRef.current) return;
+      coordsLoadingRef.current = true;
+      (async () => {
+        try {
+          const cacheKey = `municipalities_${selectedPrefecture.name}_v7`;
+          const coords = await fetchCoordinates(
+            selectedMunicipality.kana || selectedMunicipality.name,
+            false,
+            selectedPrefecture.name,
+            { lat: selectedPrefecture.lat, lng: selectedPrefecture.lng }
+          );
+          const updated = { ...selectedMunicipality, lat: coords.lat.toString(), lon: coords.lon.toString() };
+          setSelectedMunicipality(updated);
+          setMunicipalities((prev) => {
+            const next = prev.map((m) => (m.kana === updated.kana ? updated : m));
+            if (Platform.OS === 'web') {
+              localStorage.setItem(cacheKey, JSON.stringify(next));
+            } else {
+              const fileUri = `${FileSystem.documentDirectory}${cacheKey}.json`;
+              FileSystem.writeAsStringAsync(fileUri, JSON.stringify({ municipalities: next })).catch(() => {});
+            }
+            return next;
+          });
+        } catch (e) {
+          console.log('Coordinate lazy-load failed:', e);
+        } finally {
+          coordsLoadingRef.current = false;
+        }
+      })();
+      return;
+    }
   
     let isMounted = true;
     (async () => {
       try {
+        const requestKey = `${selectedPrefecture.name}:${selectedMunicipality.kana || selectedMunicipality.name}:${selectedMunicipality.lat},${selectedMunicipality.lon}`;
+        if (weatherRequestKeyRef.current === requestKey) return;
+        weatherRequestKeyRef.current = requestKey;
+
         setLoadingWeather(true);
         setError(null); // 前のエラーをリセット
         setLoadingProgressWeather(10);
@@ -477,6 +516,10 @@ export default function HomeScreen() {
           setWeatherDataList(processed);
           setWeeklyForecast(weekly);
           setLoadingProgressWeather(100);
+          logEvent('weather_loaded', {
+            prefecture: selectedPrefecture.name,
+            municipality: selectedMunicipality.name,
+          }).catch(() => {});
         }
       } catch (err) {
         console.error("Weather fetch error details:", err);
@@ -563,7 +606,19 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>{t('prefecture.label')}</Text>
           <Picker 
             selectedValue={Object.entries(PREFECTURE_DATA).find(([_, d]) => d.name === selectedPrefecture.name)?.[0] || '13'}
-            onValueChange={(v) => { const p = PREFECTURE_DATA[v]; setSelectedPrefecture(p); setSearchQuery(''); setHasUserSelectedPrefecture(true); setHasUserSelectedMunicipality(false); AsyncStorage.setItem('selectedPrefecture', p.name).catch(console.error); }} 
+            onValueChange={(v) => {
+              const p = PREFECTURE_DATA[v];
+              setSelectedPrefecture(p);
+              setSelectedMunicipality(null);
+              setMunicipalities([]);
+              setWeatherDataList([]);
+              setWeeklyForecast([]);
+              setSearchQuery('');
+              setHasUserSelectedPrefecture(true);
+              setHasUserSelectedMunicipality(false);
+              weatherRequestKeyRef.current = '';
+              AsyncStorage.setItem('selectedPrefecture', p.name).catch(console.error);
+            }} 
             style={styles.inputBase}
           >
             {Object.entries(PREFECTURE_DATA).map(([c, d]) => <Picker.Item key={c} label={d.name} value={c} />)}
@@ -612,6 +667,7 @@ export default function HomeScreen() {
                 onPress={() => {
                   setSelectedWeekly(d);
                   setShowWeeklyDetail(true);
+                  logEvent('weekly_open', { date: d.date }).catch(() => {});
                 }}
               >
                 <View style={styles.weeklyTopRow}>

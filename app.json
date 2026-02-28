@@ -21,6 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.daisaku31469.weatherapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": ["fetch", "remote-notification"]
       }
@@ -124,7 +125,17 @@
       ],
       "expo-background-fetch",
       "expo-task-manager",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "shrinkResources": true,
+            "enableSeparateBuildPerCPUArchitecture": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {

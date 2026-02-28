@@ -6,6 +6,7 @@ export class City {
   private static readonly MUNICIPALITY_DATA_URL =
     process.env.EXPO_PUBLIC_MUNICIPALITY_DATA_URL ||
     'https://raw.githubusercontent.com/piuccio/open-data-jp-municipalities/master/municipalities.json';
+  private static municipalityDatasetCache: any[] | null = null;
 
   constructor(prefecture: string) {
     this.prefecture = prefecture;
@@ -123,50 +124,55 @@ export class City {
     const normalize = (v: unknown) => String(v ?? '').trim();
     const prefWithoutSuffix = prefecture.replace(/[都道府県]$/u, '');
 
-    for (const datasetUrl of datasetUrls) {
-      try {
-        const response = await this.fetchWithTimeout(datasetUrl, 20000);
-        if (!response.ok) continue;
-        const data = await response.json();
-        if (!Array.isArray(data)) continue;
-
-        const filtered = data.filter((item: any) => {
-          const prefKanji = normalize(item?.prefecture_kanji);
-          const prefName = normalize(item?.prefecture);
-          const prefKanjiBase = prefKanji.replace(/[都道府県]$/u, '');
-          const prefNameBase = prefName.replace(/[都道府県]$/u, '');
-          return (
-            prefKanji === prefecture ||
-            prefName === prefecture ||
-            prefKanjiBase === prefWithoutSuffix ||
-            prefNameBase === prefWithoutSuffix
-          );
-        });
-
-        const mapped = filtered
-          .map((item: any) => ({
-            name: normalize(item?.name_kanji || item?.city || item?.name),
-            kana: normalize(item?.name_kana || item?.kana || item?.name_kanji || item?.name),
-          }))
-          .filter((item: { name: string; kana: string }) => item.name.length > 0);
-
-        const uniqueMap = new Map<string, { name: string; kana: string }>();
-        for (const item of mapped) {
-          if (!uniqueMap.has(item.name)) uniqueMap.set(item.name, item);
+    if (!Array.isArray(City.municipalityDatasetCache)) {
+      for (const datasetUrl of datasetUrls) {
+        try {
+          const response = await this.fetchWithTimeout(datasetUrl, 20000);
+          if (!response.ok) continue;
+          const data = await response.json();
+          if (!Array.isArray(data)) continue;
+          City.municipalityDatasetCache = data;
+          break;
+        } catch (_error) {
+          // 次のデータセットURLを試す
         }
-
-        const result = Array.from(uniqueMap.values());
-        if (result.length > 0) return result;
-      } catch (_error) {
-        // 次のデータセットURLを試す
       }
     }
 
-    return [];
+    const data = City.municipalityDatasetCache;
+    if (!Array.isArray(data)) return [];
+
+    const filtered = data.filter((item: any) => {
+      const prefKanji = normalize(item?.prefecture_kanji);
+      const prefName = normalize(item?.prefecture);
+      const prefKanjiBase = prefKanji.replace(/[都道府県]$/u, '');
+      const prefNameBase = prefName.replace(/[都道府県]$/u, '');
+      return (
+        prefKanji === prefecture ||
+        prefName === prefecture ||
+        prefKanjiBase === prefWithoutSuffix ||
+        prefNameBase === prefWithoutSuffix
+      );
+    });
+
+    const mapped = filtered
+      .map((item: any) => ({
+        name: normalize(item?.name_kanji || item?.city || item?.name),
+        kana: normalize(item?.name_kana || item?.kana || item?.name_kanji || item?.name),
+      }))
+      .filter((item: { name: string; kana: string }) => item.name.length > 0);
+
+    const uniqueMap = new Map<string, { name: string; kana: string }>();
+    for (const item of mapped) {
+      if (!uniqueMap.has(item.name)) uniqueMap.set(item.name, item);
+    }
+
+    return Array.from(uniqueMap.values());
   }
 
   async getMunicipalityDetails(blockArea: string, prefecture: string, regionId: number[], regionCode: number[]): Promise<{ name: string; kana: string }[]> {
     const url = `https://www.j-lis.go.jp/spd/code-address/${blockArea}/cms_1${regionId[0]}141${regionCode[0]}.html`;
+    const MIN_REASONABLE_COUNT = 3;
     const fallbackToOpenData = async (reason: string) => {
       const fallback = await this.fetchMunicipalitiesFromOpenData(prefecture);
       if (fallback.length > 0) {
@@ -220,7 +226,12 @@ export class City {
       const uniqueMap = new Map<string, { name: string; kana: string }>();
       results.forEach(r => uniqueMap.set(r.name, r));
       const parsed = Array.from(uniqueMap.values());
-      if (parsed.length > 0) return parsed;
+      if (parsed.length >= MIN_REASONABLE_COUNT) return parsed;
+      if (parsed.length > 0) {
+        const fallback = await fallbackToOpenData(`Suspiciously small J-LIS result (${parsed.length}件)`);
+        if (fallback.length > parsed.length) return fallback;
+        return parsed;
+      }
 
       return await fallbackToOpenData('No municipalities parsed from J-LIS table');
   

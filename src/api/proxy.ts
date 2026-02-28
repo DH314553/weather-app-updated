@@ -1,6 +1,19 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+type QueryParam = string | string[] | undefined;
+type ProxyRequest = {
+  method?: string;
+  query: Record<string, QueryParam>;
+};
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+type ProxyResponse = {
+  setHeader: (name: string, value: string) => void;
+  status: (code: number) => {
+    end: () => any;
+    json: (body: any) => any;
+    send: (body: any) => any;
+  };
+};
+
+export default async function handler(req: ProxyRequest, res: ProxyResponse) {
   // 1. CORS設定
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
