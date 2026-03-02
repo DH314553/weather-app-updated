@@ -1,30 +1,46 @@
-import { initializeApp } from "firebase/app";
-import { getAnalytics, logEvent as firebaseLogEvent } from "firebase/analytics";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import {
+  getAnalytics,
+  logEvent as firebaseLogEvent,
+  isSupported,
+  setUserProperties as firebaseSetUserProperties,
+} from "firebase/analytics";
 import { Platform } from "react-native";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAF88gfLUIC9SUxT5iDCl61OtSVpRFX9s0",
+  apiKey: "AIzaSyDjmAt7CB7A2ty4CexusMmXn0j6z2v6WDg",
   authDomain: "weather-app-82ee8.firebaseapp.com",
   projectId: "weather-app-82ee8",
   storageBucket: "weather-app-82ee8.firebasestorage.app",
   messagingSenderId: "306036335322",
-  appId: "1:306036335322:android:ac26d0d89b6d05a7047be3",
+  appId: "1:306036335322:web:7df27feec90c0185047be3",
+  measurementId: "G-G1V7J5YQLQ"
 };
 
-const app = initializeApp(firebaseConfig);
+// 🔹 Firebase初期化（重複防止）
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 let analytics: any = null;
 
+// 🔹 WebのみAnalytics有効化
 if (Platform.OS === "web") {
-  analytics = getAnalytics(app);
+  isSupported().then((supported) => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  });
 }
+
+// ===============================
+// Analytics Functions
+// ===============================
 
 export const logScreenView = async (screenName: string) => {
   if (!analytics) return;
 
-  await firebaseLogEvent(analytics, "screen", {
-    screen_name: screenName,
-    screen_class: screenName,
+  firebaseLogEvent(analytics, "screen_view", {
+    firebase_screen: screenName,
+    firebase_screen_class: screenName,
   });
 };
 
@@ -34,7 +50,7 @@ export const logEvent = async (
 ) => {
   if (!analytics) return;
 
-  await firebaseLogEvent(analytics, name, params);
+  firebaseLogEvent(analytics, name, params);
 };
 
 export const setUserProperties = async (
@@ -42,12 +58,7 @@ export const setUserProperties = async (
 ) => {
   if (!analytics) return;
 
-  Object.entries(properties).forEach(([key, value]) => {
-    firebaseLogEvent(analytics, "set_user_property", {
-      [key]: value,
-    });
-  });
+  firebaseSetUserProperties(analytics, properties);
 };
-
 
 export { analytics };
