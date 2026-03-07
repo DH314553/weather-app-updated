@@ -25,6 +25,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const usernameToEmail = (username: string) => `${encodeURIComponent(username.trim().toLowerCase())}@stogia.local`;
+const getFallbackName = (email: string | null | undefined, uid: string) => email?.split('@')[0] || uid;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = userSnap.data() as { username?: string };
           setCurrentUser(data.username || user.email || user.uid);
         } else {
-          const fallbackName = user.email?.split('@')[0] || user.uid;
+          const fallbackName = getFallbackName(user.email, user.uid);
           setCurrentUser(fallbackName);
           await setDoc(
             userRef,
@@ -61,8 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             { merge: true }
           );
         }
-      } catch (e) {
-        console.warn('Failed to resolve auth user:', e);
+      } catch (e: unknown) {
+        const code = (e as { code?: string } | null)?.code;
+        const fallbackName = getFallbackName(user?.email, user?.uid || '');
+        setCurrentUser(fallbackName || null);
+
+        // Firestore rules may temporarily deny bootstrap reads in some environments.
+        // Keep app usable with Auth fallback identity.
+        if (code === 'permission-denied' || code === 'firestore/permission-denied') {
+          console.log('Auth profile fetch skipped by Firestore rules; using auth fallback user.');
+        } else {
+          console.warn('Failed to resolve auth user:', e);
+        }
       } finally {
         setIsBootstrapping(false);
       }

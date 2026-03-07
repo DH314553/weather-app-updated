@@ -31,6 +31,28 @@ const MODERATION_SERVICE_REASONS = new Set([
   'moderation_api_error',
 ]);
 
+const SMALL_HIRAGANA_TO_NORMAL: Record<string, string> = {
+  ぁ: 'あ',
+  ぃ: 'い',
+  ぅ: 'う',
+  ぇ: 'え',
+  ぉ: 'お',
+  ゃ: 'や',
+  ゅ: 'ゆ',
+  ょ: 'よ',
+  っ: 'つ',
+  ゎ: 'わ',
+  ゕ: 'か',
+  ゖ: 'け',
+};
+
+const PROHIBITED_CAPTION_PATTERNS: Array<{ label: string; regex: RegExp }> = [
+  // "ばか", "ばーか", "バーカーーーー", "ばぁか" などを検知
+  { label: 'ばか', regex: /ば+か+(?!り)/ },
+  // 英字崩し "baka", "baaaaka" など
+  { label: 'baka', regex: /b+a+k+a+/ },
+];
+
 type CreateModeratedPostData = {
   mediaType: 'image' | 'video';
   mediaUrl: string;
@@ -134,6 +156,35 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isRetryableError = (err: unknown) => {
   const msg = String((err as { message?: string })?.message || '');
   return /429|500|502|503|504|timeout|temporar/i.test(msg);
+};
+
+const toHiragana = (value: string) =>
+  value.replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+
+const normalizeCaptionForModeration = (value: string) => {
+  const normalized = String(value || '')
+    .normalize('NFKC')
+    .toLowerCase();
+
+  const hiragana = toHiragana(normalized).replace(
+    /[ぁぃぅぇぉゃゅょっゎゕゖ]/g,
+    (ch) => SMALL_HIRAGANA_TO_NORMAL[ch] || ch
+  );
+
+  return hiragana
+    .replace(/[゛゜]/g, '')
+    .replace(/[ーｰ~〜～_・･\-\s\u3000.,!?！？。、/\\|'"`’”“(){}\[\]<>:;=+*#@%^&$]/g, '')
+    .replace(/(.)\1{2,}/g, '$1$1');
+};
+
+const detectProhibitedCaptionTerm = (caption: string) => {
+  const normalized = normalizeCaptionForModeration(caption);
+  for (const rule of PROHIBITED_CAPTION_PATTERNS) {
+    if (rule.regex.test(normalized)) {
+      return { label: rule.label, normalized };
+    }
+  }
+  return null;
 };
 
 const parseDataUrl = (value: string) => {
@@ -549,6 +600,30 @@ export const createModeratedPost = onCall(
     if (caption.length > MAX_CAPTION_LENGTH) throw new HttpsError('invalid-argument', 'Caption is too long.');
     if (storagePath && !storagePath.startsWith(`posts/${uid}/`)) {
       throw new HttpsError('permission-denied', 'Invalid storage path for current user.');
+    }
+
+    const prohibited = detectProhibitedCaptionTerm(caption);
+    if (prohibited) {
+      if (storagePath) {
+        storage
+          .bucket()
+          .file(storagePath)
+          .delete()
+          .catch((err) => logger.warn('Failed to delete blocked media', { storagePath, err: String(err) }));
+      }
+
+      await db.collection('postModerationEvents').add({
+        uid,
+        mediaType,
+        mediaUrl: mediaUrl.slice(0, 500),
+        storagePath,
+        reason: `blocked_profanity:${prohibited.label}`,
+        spamScore: 1,
+        isSpam: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+
+      throw new HttpsError('permission-denied', 'blocked:profanity_detected');
     }
 
     const userSnap = await db.collection('users').doc(uid).get();

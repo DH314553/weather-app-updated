@@ -718,7 +718,7 @@ export default function HomeScreen() {
               weatherRequestKeyRef.current = '';
               AsyncStorage.setItem('selectedPrefecture', p.name).catch(console.error);
             }} 
-            style={styles.inputBase}
+            style={styles.pickerBase}
           >
             {Object.entries(PREFECTURE_DATA).map(([c, d]) => <Picker.Item key={c} label={d.name} value={c} />)}
           </Picker>
@@ -740,7 +740,7 @@ export default function HomeScreen() {
                 setHasUserSelectedMunicipality(true);
               }
             }}
-            style={styles.inputBase}
+            style={styles.pickerBase}
           >
             {filteredMunicipalities.map((m, i) => (
               <Picker.Item key={i} label={m.name} value={m.kana} />
@@ -749,7 +749,7 @@ export default function HomeScreen() {
           </Picker>
 
           <Text style={styles.sectionTitle}>{t('timeFilter.label')}</Text>
-          <Picker selectedValue={selectedTimeFilter} onValueChange={setSelectedTimeFilter} style={styles.inputBase}>
+          <Picker selectedValue={selectedTimeFilter} onValueChange={setSelectedTimeFilter} style={styles.pickerBase}>
             {TIME_FILTERS.map((f) => <Picker.Item key={f.value} label={f.label} value={f.value} />)}
           </Picker>
         </View>
@@ -892,6 +892,7 @@ const styles = StyleSheet.create({
   filterCard: { backgroundColor: 'white', margin: 12, padding: 18, borderRadius: 14, elevation: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1976D2', marginBottom: 8, marginLeft: 4 },
   inputBase: { height: 48, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 12, paddingHorizontal: 10 },
+  pickerBase: { height: 54, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 12, paddingHorizontal: 10 },
   weatherSection: { paddingBottom: 20 },
   weatherCardsContainer: { paddingHorizontal: 12 },
   weeklyContainer: { marginTop: 8, paddingBottom: 8 },
