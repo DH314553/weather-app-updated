@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { 
   Animated, View, Text, TextInput, Button, StyleSheet, 
-  ScrollView, Alert, Modal, Pressable 
+  ScrollView, Modal, Pressable
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { httpsCallable } from 'firebase/functions';
 
 // 外部コンポーネント・ユーティリティ
 import { WeatherCard, getWeatherIcon } from '../components/WeatherCard';
@@ -21,6 +22,7 @@ import { useLanguage } from '../LanguageContext';
 import { registerBackgroundFetchAsync, setupNotificationsAsync } from '../utils/backgroundTasks';
 import { City } from '../City';
 import { logEvent, logScreenView } from '../utils/analytics';
+import { functionsClient } from '../utils/firebase';
 
 // --- 型定義 ---
 export type Municipality = { 
@@ -121,6 +123,46 @@ const WeatherProgressBar = ({ progress, label }: { progress: number, label: stri
   );
 };
 
+type HeroAdvice = {
+  laundry: string;
+  outfit: string;
+  activity: string;
+};
+
+const buildHeroAdvice = (data: WeatherData) => {
+  const weatherText = data.predictedWeather.toLowerCase();
+  const temp = Number(data.temperature || 0);
+  const wind = Number(data.windSpeed || 0);
+  const isRainy = /rain|shower|storm|thunder|雨|雷/.test(weatherText);
+  const isSnowy = /snow|blizzard|雪|吹雪/.test(weatherText);
+  const strongWind = wind >= 8;
+
+  let laundry = '';
+  if (isRainy || isSnowy) {
+    laundry = '外干しは避けて、部屋干しと除湿器の併用がおすすめです。';
+  } else if (strongWind) {
+    laundry = '乾きは早いですが風が強いので、洗濯物はしっかり固定してください。';
+  } else if (temp >= 20) {
+    laundry = '外干し向きです。午前中から干すと効率良く乾きます。';
+  } else {
+    laundry = '乾きにくい気温です。厚手の衣類は室内干しが安全です。';
+  }
+
+  let outfit = '';
+  if (temp >= 28) outfit = '半袖中心でOK。日差しが強い場合は帽子を。';
+  else if (temp >= 20) outfit = '薄手の羽織りがあると朝晩に対応しやすいです。';
+  else if (temp >= 12) outfit = '長袖と軽いアウターがちょうど良い体感です。';
+  else outfit = '防寒重視がおすすめです。厚手の上着を準備してください。';
+
+  let activity = '';
+  if (isRainy) activity = '雨具を持って移動してください。路面の滑りにも注意。';
+  else if (isSnowy) activity = '凍結の可能性があります。足元の安全を優先してください。';
+  else if (strongWind) activity = '突風に注意。自転車や高所での作業は控えめに。';
+  else activity = '外出しやすいコンディションです。換気や散歩にも向いています。';
+
+  return { laundry, outfit, activity };
+};
+
 export default function HomeScreen() {
   const prefectureContext = usePrefecture();
   
@@ -143,11 +185,22 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<WeatherData | null>(null);
   const [showWeatherDetail, setShowWeatherDetail] = useState(false);
+  const [showHeroAdvice, setShowHeroAdvice] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hasUserSelectedPrefecture, setHasUserSelectedPrefecture] = useState(false);
   const [hasUserSelectedMunicipality, setHasUserSelectedMunicipality] = useState(false);
+  const [heroAdvice, setHeroAdvice] = useState<HeroAdvice | null>(null);
   const coordsLoadingRef = useRef(false);
   const weatherRequestKeyRef = useRef('');
+  const heroAdviceRequestRef = useRef(0);
+  const generateWeatherAdvice = useMemo(
+    () => httpsCallable(functionsClient, 'generateWeatherAdvice'),
+    []
+  );
+  const resolveUserLocation = useMemo(
+    () => httpsCallable(functionsClient, 'resolveUserLocation'),
+    []
+  );
 
   // Recompute time filter labels when language changes
   const TIME_FILTERS = useMemo(() => [
@@ -321,68 +374,69 @@ export default function HomeScreen() {
         if (status === 'granted') {
           let bestLoc = await Location.getLastKnownPositionAsync();
 
-          try {
-            const sub = await Location.watchPositionAsync(
-              { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 1 },
-              (loc) => {
-                if (!bestLoc || (loc.coords.accuracy && loc.coords.accuracy < (bestLoc.coords.accuracy || 1e9))) {
-                  bestLoc = loc;
+          if (Platform.OS !== 'web') {
+            try {
+              const sub = await Location.watchPositionAsync(
+                { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 1 },
+                (loc) => {
+                  if (!bestLoc || (loc.coords.accuracy && loc.coords.accuracy < (bestLoc.coords.accuracy || 1e9))) {
+                    bestLoc = loc;
+                  }
                 }
-              }
-            );
+              );
 
-            const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
-            await wait(8000);
-            await sub.remove();
-          } catch (watchErr) {
-            console.log('watchPositionAsync not available', watchErr);
+              const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
+              await wait(8000);
+              const remove = (sub as { remove?: () => void }).remove;
+              if (typeof remove === 'function') {
+                remove.call(sub);
+              }
+            } catch (watchErr) {
+              console.log('watchPositionAsync not available', watchErr);
+            }
           }
 
           if (bestLoc) {
             try {
-              // タイムアウト処理付きで逆地理コーディングを実行
-              const reverseGeocodePromise = Location.reverseGeocodeAsync(bestLoc.coords);
-              const timeoutPromise = new Promise((_resolve, reject) => 
-                setTimeout(() => reject(new Error('Reverse geocode timeout')), 5000)
-              );
-              
-              const rev = await Promise.race([reverseGeocodePromise, timeoutPromise]) as any[];
-              
-              if (rev && rev[0]) {
-                // 都道府県を設定
-                const pName = prefNameMap[rev[0].region as keyof typeof prefNameMap];
-                const prefObj = Object.values(PREFECTURE_DATA).find(p => p.name === pName);
+              const resolved = await resolveUserLocation({
+                latitude: bestLoc.coords.latitude,
+                longitude: bestLoc.coords.longitude,
+              });
+
+              const data = (resolved.data || {}) as {
+                prefecture?: string;
+                municipality?: string;
+              };
+
+              const prefName = String(data.prefecture || '').trim();
+              const municipalityName = String(data.municipality || '').trim();
+
+              if (prefName) {
+                const prefObj = Object.values(PREFECTURE_DATA).find(p => p.name === prefName);
                 if (prefObj && prefObj.name !== selectedPrefecture.name) {
                   setSelectedPrefecture(prefObj);
                   setHasUserSelectedPrefecture(true);
                   AsyncStorage.setItem('selectedPrefecture', prefObj.name).catch(console.error);
                   return;
                 }
+              }
 
-                // 市町村を検出 - 複数のフィールドを試す
-                const municipalityName = rev[0].district || rev[0].city || rev[0].name;
-                if (municipalityName && municipalities.length > 0) {
-                  // より正確な市町村マッチング
-                  let foundMunicipality = municipalities.find(m => m.name === municipalityName);
-                  
-                  // 完全一致がない場合は部分一致を試す
-                  if (!foundMunicipality) {
-                    foundMunicipality = municipalities.find(m => 
-                      m.name.includes(municipalityName) || municipalityName.includes(m.name.replace(/[市区町村]$/, ''))
-                    );
-                  }
-                  
-                  if (foundMunicipality) {
-                    setSelectedMunicipality(foundMunicipality);
-                    setSearchQuery(foundMunicipality.name);
-                    setHasUserSelectedMunicipality(true);
-                    console.log(`✅ 市町村自動検出: ${foundMunicipality.name}`);
-                  }
+              if (municipalityName && municipalities.length > 0) {
+                let foundMunicipality = municipalities.find(m => m.name === municipalityName);
+                if (!foundMunicipality) {
+                  foundMunicipality = municipalities.find(m =>
+                    m.name.includes(municipalityName) || municipalityName.includes(m.name.replace(/[市区町村]$/, ''))
+                  );
+                }
+                if (foundMunicipality) {
+                  setSelectedMunicipality(foundMunicipality);
+                  setSearchQuery(foundMunicipality.name);
+                  setHasUserSelectedMunicipality(true);
+                  console.log(`✅ 市町村自動検出(Firebase): ${foundMunicipality.name}`);
                 }
               }
             } catch (geocodeErr) {
-              console.log("Reverse geocode error (using fallback):", geocodeErr);
-              // タイムアウトやエラー時は無言で続行（フォールバックは自動的に最初の市町村が選択されている）
+              console.log("Firebase location resolve error (using fallback):", geocodeErr);
             }
           }
         }
@@ -390,7 +444,7 @@ export default function HomeScreen() {
     };
 
     detectLocation();
-  }, [municipalities, hasUserSelectedPrefecture, hasUserSelectedMunicipality]);
+  }, [municipalities, hasUserSelectedPrefecture, hasUserSelectedMunicipality, resolveUserLocation, selectedPrefecture.name]);
 
   // --- 天気データ取得 ---
   useEffect(() => {
@@ -565,6 +619,50 @@ export default function HomeScreen() {
     return weatherDataList.find(d => parseInt(d.dateTime.split('時')[0], 10) === currentHour) || null;
   }, [weatherDataList, currentTime]);
 
+  useEffect(() => {
+    if (!heroData) {
+      setHeroAdvice(null);
+      return;
+    }
+
+    const fallbackAdvice = buildHeroAdvice(heroData);
+    setHeroAdvice(fallbackAdvice);
+
+    const requestId = heroAdviceRequestRef.current + 1;
+    heroAdviceRequestRef.current = requestId;
+
+    (async () => {
+      try {
+        const res = await generateWeatherAdvice({
+          weatherText: heroData.predictedWeather,
+          temperature: Number(heroData.temperature || 0),
+          precipitation: Number(heroData.precipitation || 0),
+          windSpeed: Number(heroData.windSpeed || 0),
+          prefecture: selectedPrefecture.name,
+          municipality: selectedMunicipality?.name || '',
+          dateTime: `${heroData.date} ${heroData.dateTime}`,
+          language,
+        });
+
+        const advice = (res.data as { advice?: Partial<HeroAdvice> } | undefined)?.advice;
+        const nextAdvice: HeroAdvice | null =
+          advice?.laundry && advice?.outfit && advice?.activity
+            ? {
+                laundry: String(advice.laundry),
+                outfit: String(advice.outfit),
+                activity: String(advice.activity),
+              }
+            : null;
+
+        if (requestId === heroAdviceRequestRef.current && nextAdvice) {
+          setHeroAdvice(nextAdvice);
+        }
+      } catch (err) {
+        console.log('AI advice fallback to local rules:', err);
+      }
+    })();
+  }, [heroData, selectedPrefecture.name, selectedMunicipality?.name, language, generateWeatherAdvice]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -591,15 +689,16 @@ export default function HomeScreen() {
         )}
 
         {heroData && (
-          <View style={styles.heroCard}>
+          <Pressable style={styles.heroCard} onPress={() => setShowHeroAdvice(true)}>
             <View style={styles.heroContent}>
               <MaterialCommunityIcons name={getWeatherIcon(heroData.predictedWeather)} size={80} color="#1976D2" />
               <View style={styles.heroTextSection}>
                 <Text style={styles.heroTemperature}>{heroData.temperature.toFixed(0)}°</Text>
                 <Text style={styles.heroWeatherText}>{heroData.predictedWeather}</Text>
+                <Text style={styles.heroHintText}>{t('hero.tapForAdvice', undefined, 'タップして天気アドバイスを見る')}</Text>
               </View>
             </View>
-          </View>
+          </Pressable>
         )}
 
         <View style={styles.filterCard}>
@@ -695,6 +794,25 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
+      <Modal visible={showHeroAdvice} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('hero.adviceTitle', undefined, '天気アドバイス')}</Text>
+              <Button title={t('common.close')} onPress={() => setShowHeroAdvice(false)} color="#1976D2" />
+            </View>
+            {heroData && heroAdvice && (
+              <View style={styles.detailCard}>
+                <Text style={styles.detailLabel}>{heroData.date} {heroData.dateTime} / {heroData.predictedWeather}</Text>
+                <Text style={styles.detailValue}>{t('hero.laundry', undefined, '洗濯')}: {heroAdvice.laundry}</Text>
+                <Text style={styles.detailValue}>{t('hero.outfit', undefined, '服装')}: {heroAdvice.outfit}</Text>
+                <Text style={styles.detailValue}>{t('hero.activity', undefined, '行動')}: {heroAdvice.activity}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showWeatherDetail} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -770,6 +888,7 @@ const styles = StyleSheet.create({
   heroTextSection: { alignItems: 'flex-start' },
   heroTemperature: { fontSize: 54, fontWeight: '800', color: '#1976D2' },
   heroWeatherText: { fontSize: 18, fontWeight: '600', color: '#424242' },
+  heroHintText: { marginTop: 8, fontSize: 12, color: '#1976D2', fontWeight: '600' },
   filterCard: { backgroundColor: 'white', margin: 12, padding: 18, borderRadius: 14, elevation: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1976D2', marginBottom: 8, marginLeft: 4 },
   inputBase: { height: 48, backgroundColor: '#F5F5F5', borderRadius: 10, marginBottom: 12, paddingHorizontal: 10 },

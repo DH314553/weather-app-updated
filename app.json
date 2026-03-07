@@ -129,9 +129,20 @@
             "enableSeparateBuildPerCPUArchitecture": true
           }
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy",
+          "iosAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy"
+        }
       ]
     ],
     "extra": {
+      "admob": {
+        "bannerAdUnitIdAndroid": "ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz",
+        "bannerAdUnitIdIos": "ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz"
+      },
       "eas": {
         "projectId": "f1a783ce-61ca-4a1f-845a-fdadd7fafc3b"
       }

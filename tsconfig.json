@@ -26,4 +26,5 @@
     "jsx": "react-jsx",
     "strict": true
   },
+  "exclude": ["functions", "node_modules"]
 }

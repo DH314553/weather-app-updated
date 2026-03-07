@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function validUsername(name) {
+      return name is string && name.size() >= 1 && name.size() <= 40;
+    }
+
+    function validPostMediaType(value) {
+      return value in ['image', 'video'];
+    }
+
+    function validPostCaption(value) {
+      return value is string && value.size() <= 1000;
+    }
+
+    function validMediaUrl(value) {
+      return value is string && value.size() > 0 && value.size() <= 5000;
+    }
+
+    // User profile document
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && validUsername(request.resource.data.username)
+        && request.resource.data.usernameLower is string
+        && request.resource.data.usernameLower == lower(request.resource.data.username)
+        && request.resource.data.keys().hasOnly([
+          'username',
+          'usernameLower',
+          'createdAt',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // Public weather posts feed
+    match /posts/{postId} {
+      allow read: if true;
+      // All writes must go through trusted backend (Cloud Functions + Admin SDK)
+      // so AI moderation cannot be bypassed by modified clients.
+      allow create, update, delete: if false;
+    }
+
+    // Moderation audit logs (server-only)
+    match /postModerationEvents/{eventId} {
+      allow read, write: if false;
+    }
+  }
+}

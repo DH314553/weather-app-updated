@@ -14,6 +14,7 @@ import { usePrefecture } from '../PrefectureContext';
 import { registerBackgroundFetchAsync, unregisterBackgroundFetchAsync, runBackgroundWeatherCheckOnce } from '../utils/backgroundTasks';
 import { t } from '../utils/i18n';
 import { useLanguage } from '../LanguageContext';
+import { useAuth } from '../AuthContext';
 
 type Language = 'ja' | 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ko';
 
@@ -25,6 +26,7 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
 
   const { language, changeLanguage } = useLanguage();
+  const { currentUser, logout } = useAuth();
   const prefectureContext = usePrefecture();
   const selectedPrefecture = prefectureContext?.selectedPrefecture;
 
@@ -187,6 +189,17 @@ export default function SettingsScreen() {
           {t('prefecture.label', undefined, 'Prefecture:')} {selectedPrefecture?.name ?? '---'}
         </Text>
       </View>
+
+      {currentUser && (
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={async () => {
+            await logout();
+          }}
+        >
+          <Text style={styles.logoutButtonText}>{t('auth.logout', undefined, 'ログアウト')}</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -223,6 +236,8 @@ const styles = StyleSheet.create({
   pickerContainer: { backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#EEE', overflow: 'hidden' },
   infoSection: { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   footerText: { color: '#999', fontSize: 13 },
+  logoutButton: { marginTop: 20, backgroundColor: '#D32F2F', paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  logoutButtonText: { color: '#FFF', fontWeight: '700' },
 
   // threshold UI
   thresholdSection: { marginTop: 10, padding: 12, backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#EEE' },
