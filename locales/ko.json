@@ -7,7 +7,8 @@
     "search": "검색",
     "all": "모두",
     "close": "닫기",
-    "cancel": "취소"
+    "cancel": "취소",
+    "clear": "해제"
   },
   "settings": {
     "title": "설정",
@@ -154,10 +155,17 @@
     "moderationServiceErrorTitle": "게시물을 처리할 수 없습니다",
     "moderationServiceErrorMessage": "현재 모더레이션 서비스가 불안정합니다. 잠시 후 다시 시도해 주세요.",
     "invalidInputMessage": "입력 내용을 확인한 뒤 다시 시도해 주세요.",
+    "moderationBlockedTitle": "게시물 차단",
+    "moderationBlockedMessage": "이 게시물은 안전 규정으로 인해 게시할 수 없습니다.",
+    "submitFailedTitle": "게시 실패",
+    "submitFailedMessage": "게시물을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     "unknownWeather": "날씨 정보 없음",
     "weatherSnapshot": "게시 시점 날씨",
     "openVideo": "동영상 열기",
-    "empty": "아직 게시글이 없습니다."
+    "empty": "아직 게시글이 없습니다.",
+    "selectedFile": "선택됨: {fileName}",
+    "aiWeatherComment": "AI 날씨 코멘트",
+    "relatedFilter": "{tag} 관련 게시물"
   },
   "conditions": {
     "sunny": "맑음",

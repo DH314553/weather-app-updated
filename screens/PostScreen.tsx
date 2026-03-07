@@ -10,6 +10,7 @@ import {
 import { getDownloadURL, ref, uploadBytes, uploadString } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '../AuthContext';
+import { useLanguage } from '../LanguageContext';
 import { t } from '../utils/i18n';
 import { db, functionsClient, storage } from '../utils/firebase';
 
@@ -112,6 +113,7 @@ const splitCaptionByHashtag = (value: string) => {
 };
 
 export default function PostScreen() {
+  const { language } = useLanguage();
   const { currentUser, currentUserId } = useAuth();
   const [postMediaType, setPostMediaType] = useState<'image' | 'video'>('image');
   const [postMediaUrl, setPostMediaUrl] = useState('');
@@ -121,6 +123,16 @@ export default function PostScreen() {
   const [activeHashtag, setActiveHashtag] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const createModeratedPost = httpsCallable(functionsClient, 'createModeratedPost');
+  const localeByLanguage: Record<string, string> = {
+    ja: 'ja-JP',
+    en: 'en-US',
+    es: 'es-ES',
+    fr: 'fr-FR',
+    de: 'de-DE',
+    zh: 'zh-CN',
+    ko: 'ko-KR',
+  };
+  const dateLocale = localeByLanguage[language] || 'ja-JP';
 
   useEffect(() => {
     const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
@@ -274,6 +286,7 @@ export default function PostScreen() {
           platform: Platform.OS,
           userAgent: Platform.OS === 'web' ? ((globalThis as any).navigator?.userAgent || '') : '',
           appVersion: '1.0.0',
+          language,
         },
       });
 
@@ -387,7 +400,7 @@ export default function PostScreen() {
         {filteredPosts.length === 0 && <Text style={styles.empty}>{t('posts.empty', undefined, '投稿はまだありません。')}</Text>}
         {filteredPosts.map((post) => (
           <View key={post.id} style={styles.postCard}>
-            <Text style={styles.meta}>{post.author} · {new Date(post.createdAt).toLocaleString('ja-JP')}</Text>
+            <Text style={styles.meta}>{post.author} · {new Date(post.createdAt).toLocaleString(dateLocale)}</Text>
             {post.mediaType === 'image' ? (
               <Image source={{ uri: post.mediaUrl }} style={styles.image} />
             ) : (

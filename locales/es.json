@@ -7,7 +7,8 @@
     "search": "Buscar",
     "all": "Todos",
     "close": "Cerrar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "clear": "Limpiar"
   },
   "settings": {
     "title": "Ajustes",
@@ -154,10 +155,17 @@
     "moderationServiceErrorTitle": "No se puede procesar la publicación",
     "moderationServiceErrorMessage": "La moderación está inestable en este momento. Inténtelo de nuevo más tarde.",
     "invalidInputMessage": "Revise la información ingresada y vuelva a intentarlo.",
+    "moderationBlockedTitle": "Publicación bloqueada",
+    "moderationBlockedMessage": "Esta publicación no se puede publicar por normas de seguridad.",
+    "submitFailedTitle": "Error al publicar",
+    "submitFailedMessage": "No se pudo guardar la publicación. Inténtalo de nuevo más tarde.",
     "unknownWeather": "Sin datos del tiempo",
     "weatherSnapshot": "Tiempo al publicar",
     "openVideo": "Abrir video",
-    "empty": "Aún no hay publicaciones."
+    "empty": "Aún no hay publicaciones.",
+    "selectedFile": "Seleccionado: {fileName}",
+    "aiWeatherComment": "Comentario meteorológico de IA",
+    "relatedFilter": "Publicaciones relacionadas con {tag}"
   },
   "ads": {
     "title": "Anuncios",

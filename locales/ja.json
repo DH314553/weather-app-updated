@@ -7,7 +7,8 @@
     "search": "検索",
     "all": "すべて",
     "close": "閉じる",
-    "cancel": "キャンセル"
+    "cancel": "キャンセル",
+    "clear": "解除"
   },
   "settings": {
     "title": "設定",
@@ -160,7 +161,10 @@
     "unknownWeather": "天気情報なし",
     "weatherSnapshot": "投稿時の天気",
     "openVideo": "動画を開く",
-    "empty": "投稿はまだありません。"
+    "empty": "投稿はまだありません。",
+    "selectedFile": "選択中: {fileName}",
+    "aiWeatherComment": "AI天気コメント",
+    "relatedFilter": "{tag} の関連投稿"
   },
   "ads": {
     "title": "広告",

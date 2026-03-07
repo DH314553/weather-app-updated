@@ -197,6 +197,24 @@ const normalizePrefectureName = (raw) => {
     }
     return PREFECTURE_FROM_ENGLISH[value] || value;
 };
+const resolveSupportedLanguage = (value) => {
+    const code = String(value || '').toLowerCase().trim();
+    if (code.startsWith('ja'))
+        return 'ja';
+    if (code.startsWith('en'))
+        return 'en';
+    if (code.startsWith('es'))
+        return 'es';
+    if (code.startsWith('fr'))
+        return 'fr';
+    if (code.startsWith('de'))
+        return 'de';
+    if (code.startsWith('zh'))
+        return 'zh';
+    if (code.startsWith('ko'))
+        return 'ko';
+    return 'ja';
+};
 const normalizeCustomerId = (value) => String(value || '').replace(/[^0-9]/g, '').slice(0, 20);
 const resolveGoogleAdsCustomerId = (fromRequest) => {
     const requestValue = normalizeCustomerId(String(fromRequest || ''));
@@ -310,6 +328,15 @@ const googleAdsJsonRequest = async (params) => {
     return text ? JSON.parse(text) : {};
 };
 const runPostIntelligenceOnce = async (params) => {
+    const weatherCommentLanguageLabel = {
+        ja: 'Japanese',
+        en: 'English',
+        es: 'Spanish',
+        fr: 'French',
+        de: 'German',
+        zh: 'Chinese',
+        ko: 'Korean',
+    };
     const policy = [
         'You are a strict moderator + metadata generator for a weather community app.',
         'Tasks: 1) Safety moderation, 2) spam/ad/scam detection, 3) weather comment generation, 4) auto tag generation.',
@@ -318,7 +345,7 @@ const runPostIntelligenceOnce = async (params) => {
         'Return JSON only with schema:',
         '{"allow":true|false,"reason":"short_reason","spamScore":0..1,"tags":["#tag"],"weatherComment":"short comment"}',
         'tags must be relevant weather hashtags.',
-        'weatherComment must be practical and one short sentence.',
+        `weatherComment must be practical, one short sentence, and written in ${weatherCommentLanguageLabel[params.language]}.`,
     ].join(' ');
     const parts = [{ text: policy }];
     if (params.mediaType === 'image') {
@@ -430,6 +457,7 @@ exports.createModeratedPost = (0, https_1.onCall)({
     const mediaUrl = String(payload.mediaUrl || '').trim();
     const caption = String(payload.caption || '').trim();
     const storagePath = payload.storagePath ? String(payload.storagePath) : null;
+    const language = resolveSupportedLanguage(payload.clientMeta?.language);
     if (mediaType !== 'image' && mediaType !== 'video')
         throw new https_1.HttpsError('invalid-argument', 'Invalid mediaType.');
     if (!mediaUrl || mediaUrl.length > MAX_MEDIA_URL_LENGTH)
@@ -468,6 +496,7 @@ exports.createModeratedPost = (0, https_1.onCall)({
         caption,
         storagePath,
         apiKey: getGeminiApiKey(),
+        language,
     });
     if (!moderation.allow) {
         if (storagePath) {
@@ -524,32 +553,30 @@ exports.generateWeatherAdvice = (0, https_1.onCall)({
     const prefecture = String(payload.prefecture || '').trim().slice(0, 60);
     const municipality = String(payload.municipality || '').trim().slice(0, 60);
     const dateTime = String(payload.dateTime || '').trim().slice(0, 60);
-    const language = payload.language === 'en' ? 'en' : 'ja';
+    const language = resolveSupportedLanguage(payload.language);
     if (!weatherText)
         throw new https_1.HttpsError('invalid-argument', 'weatherText is required.');
-    const prompt = language === 'en'
-        ? [
-            'You are a practical weather advisor.',
-            'Return JSON only: {"laundry":"...","outfit":"...","activity":"..."}',
-            'Each field must be one concise sentence under 70 characters.',
-            `Weather: ${weatherText}`,
-            `Temperature(C): ${temperature}`,
-            `Precipitation(%): ${precipitation}`,
-            `Wind(m/s): ${windSpeed}`,
-            `Location: ${prefecture} ${municipality}`,
-            `Time: ${dateTime}`,
-        ].join('\n')
-        : [
-            'あなたは実用重視の天気アドバイザーです。',
-            'JSONのみで返答: {"laundry":"...","outfit":"...","activity":"..."}',
-            '各項目は70文字以内の簡潔な1文。',
-            `天気: ${weatherText}`,
-            `気温(℃): ${temperature}`,
-            `降水確率(%): ${precipitation}`,
-            `風速(m/s): ${windSpeed}`,
-            `地点: ${prefecture} ${municipality}`,
-            `時刻: ${dateTime}`,
-        ].join('\n');
+    const languageLabel = {
+        ja: 'Japanese',
+        en: 'English',
+        es: 'Spanish',
+        fr: 'French',
+        de: 'German',
+        zh: 'Chinese',
+        ko: 'Korean',
+    };
+    const prompt = [
+        'You are a practical weather advisor.',
+        'Return JSON only: {"laundry":"...","outfit":"...","activity":"..."}',
+        'Each field must be one concise sentence under 70 characters.',
+        `Write all fields in ${languageLabel[language]}.`,
+        `Weather: ${weatherText}`,
+        `Temperature(C): ${temperature}`,
+        `Precipitation(%): ${precipitation}`,
+        `Wind(m/s): ${windSpeed}`,
+        `Location: ${prefecture} ${municipality}`,
+        `Time: ${dateTime}`,
+    ].join('\n');
     try {
         const text = await callGeminiText(prompt, getGeminiApiKey());
         const advice = parseAdviceJson(text);

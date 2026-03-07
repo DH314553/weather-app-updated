@@ -7,7 +7,8 @@
     "search": "Search",
     "all": "All",
     "close": "Close",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "clear": "Clear"
   },
   "settings": {
     "title": "Settings",
@@ -161,7 +162,10 @@
     "unknownWeather": "No weather data",
     "weatherSnapshot": "Weather at post time",
     "openVideo": "Open video",
-    "empty": "No posts yet."
+    "empty": "No posts yet.",
+    "selectedFile": "Selected: {fileName}",
+    "aiWeatherComment": "AI weather comment",
+    "relatedFilter": "Related posts for {tag}"
   },
   "ads": {
     "title": "Ads",

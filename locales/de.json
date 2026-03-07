@@ -7,7 +7,8 @@
     "search": "Suche",
     "all": "Alle",
     "close": "Schließen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "clear": "Zurücksetzen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -154,10 +155,17 @@
     "moderationServiceErrorTitle": "Beitrag kann nicht verarbeitet werden",
     "moderationServiceErrorMessage": "Die Moderation ist derzeit instabil. Bitte später erneut versuchen.",
     "invalidInputMessage": "Bitte Eingaben prüfen und erneut versuchen.",
+    "moderationBlockedTitle": "Beitrag blockiert",
+    "moderationBlockedMessage": "Dieser Beitrag kann wegen Sicherheitsregeln nicht veröffentlicht werden.",
+    "submitFailedTitle": "Beitrag fehlgeschlagen",
+    "submitFailedMessage": "Der Beitrag konnte nicht gespeichert werden. Bitte später erneut versuchen.",
     "unknownWeather": "Keine Wetterdaten",
     "weatherSnapshot": "Wetter beim Posten",
     "openVideo": "Video öffnen",
-    "empty": "Noch keine Beiträge."
+    "empty": "Noch keine Beiträge.",
+    "selectedFile": "Ausgewählt: {fileName}",
+    "aiWeatherComment": "KI-Wetterkommentar",
+    "relatedFilter": "Verwandte Beiträge zu {tag}"
   },
   "conditions": {
     "sunny": "Sonnig",

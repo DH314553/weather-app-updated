@@ -7,7 +7,8 @@
     "search": "Rechercher",
     "all": "Tous",
     "close": "Fermer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "clear": "Effacer"
   },
   "settings": {
     "title": "Paramètres",
@@ -154,10 +155,17 @@
     "moderationServiceErrorTitle": "Impossible de traiter la publication",
     "moderationServiceErrorMessage": "La modération est instable pour le moment. Veuillez réessayer plus tard.",
     "invalidInputMessage": "Vérifiez les informations saisies puis réessayez.",
+    "moderationBlockedTitle": "Publication bloquée",
+    "moderationBlockedMessage": "Cette publication ne peut pas être publiée pour des raisons de sécurité.",
+    "submitFailedTitle": "Échec de la publication",
+    "submitFailedMessage": "Impossible d'enregistrer la publication. Veuillez réessayer plus tard.",
     "unknownWeather": "Aucune donnée météo",
     "weatherSnapshot": "Météo lors de la publication",
     "openVideo": "Ouvrir la vidéo",
-    "empty": "Aucune publication pour le moment."
+    "empty": "Aucune publication pour le moment.",
+    "selectedFile": "Sélectionné : {fileName}",
+    "aiWeatherComment": "Commentaire météo IA",
+    "relatedFilter": "Publications liées à {tag}"
   },
   "conditions": {
     "sunny": "Ensoleillé",

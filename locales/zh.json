@@ -7,7 +7,8 @@
     "search": "搜索",
     "all": "全部",
     "close": "关闭",
-    "cancel": "取消"
+    "cancel": "取消",
+    "clear": "清除"
   },
   "settings": {
     "title": "设置",
@@ -154,10 +155,17 @@
     "moderationServiceErrorTitle": "无法处理发布",
     "moderationServiceErrorMessage": "当前审核服务不稳定，请稍后重试。",
     "invalidInputMessage": "请检查输入内容后重试。",
+    "moderationBlockedTitle": "发布被拦截",
+    "moderationBlockedMessage": "此内容因安全规则无法发布。",
+    "submitFailedTitle": "发布失败",
+    "submitFailedMessage": "保存发布失败，请稍后再试。",
     "unknownWeather": "无天气数据",
     "weatherSnapshot": "发布时天气",
     "openVideo": "打开视频",
-    "empty": "暂无发布内容。"
+    "empty": "暂无发布内容。",
+    "selectedFile": "已选择: {fileName}",
+    "aiWeatherComment": "AI 天气评论",
+    "relatedFilter": "{tag} 的相关发布"
   },
   "conditions": {
     "sunny": "晴",

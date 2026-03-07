@@ -18,7 +18,7 @@ import { WeatherData, WeatherResponse } from '../types/weather';
 import { fetchWeatherData, predictWeather, fetchCoordinates, getRegionInfo } from '../utils/weather';
 import { usePrefecture } from '../PrefectureContext';
 import { t, setLanguage as i18nSetLanguage, getCurrentLanguage } from '../utils/i18n';
-import { useLanguage } from '../LanguageContext';
+import { Language, useLanguage } from '../LanguageContext';
 import { registerBackgroundFetchAsync, setupNotificationsAsync } from '../utils/backgroundTasks';
 import { City } from '../City';
 import { logEvent, logScreenView } from '../utils/analytics';
@@ -181,7 +181,7 @@ export default function HomeScreen() {
   const [loadingProgressWeather, setLoadingProgressWeather] = useState(0);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
   const { language: ctxLanguage, changeLanguage } = useLanguage();
-  const [language, setLanguageState] = useState<'ja' | 'en'>((getCurrentLanguage() as 'ja' | 'en') || (ctxLanguage as 'ja' | 'en'));
+  const [language, setLanguageState] = useState<Language>((getCurrentLanguage() as Language) || ctxLanguage);
   const [error, setError] = useState<string | null>(null);
   const [selectedWeather, setSelectedWeather] = useState<WeatherData | null>(null);
   const [showWeatherDetail, setShowWeatherDetail] = useState(false);
@@ -211,6 +211,10 @@ export default function HomeScreen() {
   ], [ctxLanguage]);
 
   // --- 検索用ヘルパー: カタカナをひらがなに統一 ---
+  useEffect(() => {
+    setLanguageState(ctxLanguage);
+  }, [ctxLanguage]);
+
   const toHiragana = (str: string) => {
     if (!str) return "";
     return str.replace(/[\u30a1-\u30f6]/g, (match) => {
@@ -641,7 +645,7 @@ export default function HomeScreen() {
           prefecture: selectedPrefecture.name,
           municipality: selectedMunicipality?.name || '',
           dateTime: `${heroData.date} ${heroData.dateTime}`,
-          language,
+          language: ctxLanguage,
         });
 
         const advice = (res.data as { advice?: Partial<HeroAdvice> } | undefined)?.advice;
@@ -661,7 +665,7 @@ export default function HomeScreen() {
         console.log('AI advice fallback to local rules:', err);
       }
     })();
-  }, [heroData, selectedPrefecture.name, selectedMunicipality?.name, language, generateWeatherAdvice]);
+  }, [heroData, selectedPrefecture.name, selectedMunicipality?.name, ctxLanguage, generateWeatherAdvice]);
 
   return (
     <View style={styles.container}>
