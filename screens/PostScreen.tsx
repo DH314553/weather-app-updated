@@ -23,6 +23,7 @@ type MediaPost = {
   caption: string;
   aiTags?: string[];
   aiWeatherComment?: string;
+  hashtags?: string[];
 };
 
 type CreatePostErrorKind =
@@ -69,6 +70,47 @@ const extractImageExtension = (dataUrl: string) => {
   return match?.[1] || 'jpg';
 };
 
+const normalizeHashtag = (raw: string) => {
+  const tag = String(raw || '').trim().replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '');
+  if (!tag) return '';
+  return `#${tag.toLowerCase()}`;
+};
+
+const extractHashtagsFromText = (value: string) => {
+  const matches = String(value || '').match(/#[\p{L}\p{N}_]+/gu) || [];
+  const unique = new Set<string>();
+  for (const m of matches) {
+    const normalized = normalizeHashtag(m);
+    if (normalized) unique.add(normalized);
+  }
+  return Array.from(unique);
+};
+
+const splitCaptionByHashtag = (value: string) => {
+  const text = String(value || '');
+  const regex = /#[\p{L}\p{N}_]+/gu;
+  const parts: Array<{ text: string; hashtag?: string }> = [];
+  let lastIndex = 0;
+  let match = regex.exec(text);
+
+  while (match) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (start > lastIndex) {
+      parts.push({ text: text.slice(lastIndex, start) });
+    }
+    const normalized = normalizeHashtag(match[0]);
+    parts.push({ text: match[0], hashtag: normalized || undefined });
+    lastIndex = end;
+    match = regex.exec(text);
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ text: text.slice(lastIndex) });
+  }
+  return parts;
+};
+
 export default function PostScreen() {
   const { currentUser, currentUserId } = useAuth();
   const [postMediaType, setPostMediaType] = useState<'image' | 'video'>('image');
@@ -76,6 +118,7 @@ export default function PostScreen() {
   const [postCaption, setPostCaption] = useState('');
   const [selectedLocalFile, setSelectedLocalFile] = useState<File | null>(null);
   const [posts, setPosts] = useState<MediaPost[]>([]);
+  const [activeHashtag, setActiveHashtag] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const createModeratedPost = httpsCallable(functionsClient, 'createModeratedPost');
 
@@ -104,6 +147,12 @@ export default function PostScreen() {
           caption: data.caption || '',
           aiTags: Array.isArray(data.aiTags) ? data.aiTags : [],
           aiWeatherComment: data.aiWeatherComment || '',
+          hashtags: Array.from(
+            new Set([
+              ...extractHashtagsFromText(data.caption || ''),
+              ...(Array.isArray(data.aiTags) ? data.aiTags : []).map((tag) => normalizeHashtag(tag)),
+            ].filter(Boolean))
+          ),
         } as MediaPost;
       });
 
@@ -112,6 +161,39 @@ export default function PostScreen() {
 
     return unsubscribe;
   }, []);
+
+  const filteredPosts = useMemo(() => {
+    if (!activeHashtag) return posts;
+    return posts.filter((post) => (post.hashtags || []).includes(activeHashtag));
+  }, [posts, activeHashtag]);
+
+  const openRelatedPosts = (tag: string) => {
+    const normalized = normalizeHashtag(tag);
+    if (!normalized) return;
+    setActiveHashtag(normalized);
+  };
+
+  const renderCaption = (caption: string) => {
+    const parts = splitCaptionByHashtag(caption);
+    return (
+      <Text style={styles.caption}>
+        {parts.map((part, idx) => {
+          if (part.hashtag) {
+            return (
+              <Text
+                key={`${part.hashtag}-${idx}`}
+                style={styles.captionTag}
+                onPress={() => openRelatedPosts(part.hashtag || '')}
+              >
+                {part.text}
+              </Text>
+            );
+          }
+          return <Text key={`text-${idx}`}>{part.text}</Text>;
+        })}
+      </Text>
+    );
+  };
 
   const pickLocalMedia = () => {
     if (Platform.OS !== 'web') {
@@ -292,8 +374,18 @@ export default function PostScreen() {
       </View>
 
       <View style={styles.listSection}>
-        {posts.length === 0 && <Text style={styles.empty}>{t('posts.empty', undefined, '投稿はまだありません。')}</Text>}
-        {posts.map((post) => (
+        {!!activeHashtag && (
+          <View style={styles.filterBanner}>
+            <Text style={styles.filterBannerText}>
+              {t('posts.relatedFilter', { tag: activeHashtag }, `${activeHashtag} の関連投稿`)}
+            </Text>
+            <Pressable onPress={() => setActiveHashtag('')}>
+              <Text style={styles.filterClearText}>{t('common.clear', undefined, '解除')}</Text>
+            </Pressable>
+          </View>
+        )}
+        {filteredPosts.length === 0 && <Text style={styles.empty}>{t('posts.empty', undefined, '投稿はまだありません。')}</Text>}
+        {filteredPosts.map((post) => (
           <View key={post.id} style={styles.postCard}>
             <Text style={styles.meta}>{post.author} · {new Date(post.createdAt).toLocaleString('ja-JP')}</Text>
             {post.mediaType === 'image' ? (
@@ -303,14 +395,26 @@ export default function PostScreen() {
                 <Text style={styles.videoButtonText}>{t('posts.openVideo', undefined, '動画を開く')}</Text>
               </Pressable>
             )}
-            {!!post.caption && <Text style={styles.caption}>{post.caption}</Text>}
+            {!!post.caption && renderCaption(post.caption)}
             {!!post.aiWeatherComment && (
               <Text style={styles.aiComment}>
                 {t('posts.aiWeatherComment', undefined, 'AI天気コメント')}: {post.aiWeatherComment}
               </Text>
             )}
-            {!!post.aiTags?.length && (
-              <Text style={styles.tagsText}>{post.aiTags.join(' ')}</Text>
+            {!!post.hashtags?.length && (
+              <View style={styles.tagsRow}>
+                {post.hashtags.map((tag) => (
+                  <Pressable
+                    key={`${post.id}-${tag}`}
+                    style={[styles.tagChip, activeHashtag === tag && styles.tagChipActive]}
+                    onPress={() => openRelatedPosts(tag)}
+                  >
+                    <Text style={[styles.tagChipText, activeHashtag === tag && styles.tagChipTextActive]}>
+                      {tag}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             )}
           </View>
         ))}
@@ -339,13 +443,39 @@ const styles = StyleSheet.create({
   submitButtonDisabled: { opacity: 0.6 },
   submitButtonText: { color: 'white', fontWeight: '700' },
   listSection: { marginTop: 12, gap: 10 },
+  filterBanner: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterBannerText: { color: '#1565C0', fontWeight: '700' },
+  filterClearText: { color: '#1976D2', fontWeight: '700' },
   empty: { textAlign: 'center', color: '#999', marginTop: 20 },
   aiComment: { marginTop: 8, color: '#1E88E5', fontWeight: '600' },
-  tagsText: { marginTop: 6, color: '#455A64', fontStyle: 'italic' },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  tagChip: {
+    backgroundColor: '#E8F3FF',
+    borderColor: '#90CAF9',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  tagChipActive: {
+    backgroundColor: '#1976D2',
+    borderColor: '#1976D2',
+  },
+  tagChipText: { color: '#1565C0', fontWeight: '700' },
+  tagChipTextActive: { color: '#FFFFFF' },
   postCard: { backgroundColor: 'white', borderRadius: 10, padding: 12, elevation: 2 },
   meta: { fontSize: 12, color: '#607D8B', marginBottom: 8 },
   image: { width: '100%', height: 180, borderRadius: 8, backgroundColor: '#CFD8DC' },
   videoButton: { backgroundColor: '#E3F2FD', borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
   videoButtonText: { color: '#1565C0', fontWeight: '700' },
   caption: { marginTop: 8, color: '#37474F' },
+  captionTag: { color: '#1565C0', fontWeight: '700' },
 });
