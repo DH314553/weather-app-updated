@@ -9,7 +9,6 @@ import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 
 // 内部ユーティリティ
-import { registerForPushNotificationsAsync } from '../utils/notifications';
 import { usePrefecture } from '../PrefectureContext';
 import { registerBackgroundFetchAsync, unregisterBackgroundFetchAsync, runBackgroundWeatherCheckOnce } from '../utils/backgroundTasks';
 import { t } from '../utils/i18n';

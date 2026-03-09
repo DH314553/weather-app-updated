@@ -2,18 +2,24 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, View } from "react-native";
+import { useEffect } from "react";
 import App from "../screens/App";
 import SettingsScreen from "../screens/SettingsScreen";
 import WorldWeatherScreen from "../screens/WorldWeatherScreen";
 import PostScreen from "../screens/PostScreen";
 import AuthScreen from "../screens/AuthScreen";
 import { useAuth } from "../AuthContext";
+import { trackAdsRevenueEstimate } from "../utils/adsRevenueAnalytics";
 import { t } from '../utils/i18n';
 
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigator() {
   const { currentUser, isBootstrapping } = useAuth();
+
+  useEffect(() => {
+    void trackAdsRevenueEstimate();
+  }, []);
 
   if (isBootstrapping) {
     return (
