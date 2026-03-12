@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, Image } from 'react-native';
 import { useAuth } from '../AuthContext';
+import A8Banner from '../components/A8Banner';
 import { t } from '../utils/i18n';
 
 export default function AuthScreen() {
@@ -101,9 +102,11 @@ export default function AuthScreen() {
           </Text>
         </Pressable>
 
-        {message && <Text style={styles.message}>{message}</Text>}
-      </View>
+      {message && <Text style={styles.message}>{message}</Text>}
     </View>
+
+    <A8Banner placement="auth_bottom" mode="rotate" />
+  </View>
   );
 }
 

@@ -560,9 +560,6 @@ export const fetchCoordinates = async (
   };
 
   try {
-    let url: string;
-    let data: any;
-
     if (worldFlag) {
       // 世界検索は辞書 + 多言語ジオコーディングで広くカバーする。
       const hasJapanese = /[\u3040-\u30ff\u3400-\u9faf]/.test(city);
@@ -680,10 +677,6 @@ export const fetchCoordinates = async (
 
       // 全てのAPIが失敗した場合
       console.log(`❌ All APIs failed for: ${city}`);
-    }
-
-    if (!data.results || data.results.length === 0) {
-      // 日本国内で座標取得に失敗した場合、都道府県のフォールバック座標を使用
       if (!worldFlag && prefectureCoords) {
         console.log(`⚠️  Falling back to prefecture coordinates for: ${city}`);
         const fallbackResult = {
@@ -695,14 +688,6 @@ export const fetchCoordinates = async (
       }
       throw new Error(`No coordinates found for: ${city}`);
     }
-
-    const result = {
-      lat: data.results[0].latitude.toString(),
-      lon: data.results[0].longitude.toString(),
-    };
-
-    coordinateCache[coordinateCacheKey] = result;
-    return result;
   } catch (error) {
     // 日本国内検索で失敗した場合、都道府県座標をフォールバック
     if (!worldFlag && prefectureCoords) {

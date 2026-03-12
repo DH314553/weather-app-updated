@@ -27,17 +27,32 @@ async function performWeatherCheck(): Promise<BackgroundFetch.BackgroundFetchRes
     let fileUri: string | null = null;
 
     if (prefName) {
-      fileUri = `${FileSystem.documentDirectory}municipalities_${prefName}_v5.json`;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (!fileInfo.exists) fileUri = null;
+      const v7Uri = `${FileSystem.documentDirectory}municipalities_${prefName}_v7.json`;
+      const v7Info = await FileSystem.getInfoAsync(v7Uri);
+      if (v7Info.exists) {
+        fileUri = v7Uri;
+      } else {
+        const v5Uri = `${FileSystem.documentDirectory}municipalities_${prefName}_v5.json`;
+        const v5Info = await FileSystem.getInfoAsync(v5Uri);
+        if (v5Info.exists) fileUri = v5Uri;
+      }
     }
 
     if (!fileUri) {
       // scan for any municipalities_*.json as a fallback
       try {
         const dir = await FileSystem.readDirectoryAsync(FileSystem.documentDirectory || '');
-        const match = dir.find(f => f.startsWith('municipalities_') && f.endsWith('_v5.json'));
-        if (match) fileUri = `${FileSystem.documentDirectory}${match}`;
+        const v7Match = dir.find(f => f.startsWith('municipalities_') && f.endsWith('_v7.json'));
+        const v5Match = dir.find(f => f.startsWith('municipalities_') && f.endsWith('_v5.json'));
+        const match = v7Match || v5Match;
+        if (match) {
+          fileUri = `${FileSystem.documentDirectory}${match}`;
+          if (!prefName) {
+            prefName = match
+              .replace(/^municipalities_/, '')
+              .replace(/_v\d+\.json$/, '');
+          }
+        }
       } catch (e) {
         console.log('❌ Error reading document directory', e);
       }
@@ -71,7 +86,9 @@ async function performWeatherCheck(): Promise<BackgroundFetch.BackgroundFetchRes
 
     // 座標取得（フォールバックなし、キャッシュのみ）
     const coordinates = await fetchCoordinates(
-      selected.kana || selected.name, false
+      selected.kana || selected.name,
+      false,
+      prefName || undefined
     );
 
     if (!coordinates) {

@@ -13,6 +13,7 @@ import { useAuth } from '../AuthContext';
 import { useLanguage } from '../LanguageContext';
 import { t } from '../utils/i18n';
 import { db, functionsClient, storage } from '../utils/firebase';
+import A8Banner from '../components/A8Banner';
 
 type MediaPost = {
   id: string;
@@ -432,6 +433,8 @@ export default function PostScreen() {
           </View>
         ))}
       </View>
+
+      <A8Banner placement="post_bottom" mode="rotate" />
     </ScrollView>
   );
 }

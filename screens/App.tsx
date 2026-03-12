@@ -402,27 +402,23 @@ export default function HomeScreen() {
           }
 
           if (bestLoc) {
-            try {
-              const resolved = await resolveUserLocation({
-                latitude: bestLoc.coords.latitude,
-                longitude: bestLoc.coords.longitude,
-              });
+            const normalizePrefectureName = (value: string) => {
+              const trimmed = String(value || '').trim();
+              if (!trimmed) return '';
+              const exact = Object.values(PREFECTURE_DATA).find(p => p.name === trimmed);
+              if (exact) return exact.name;
+              const mapped = prefNameMap[trimmed as keyof typeof prefNameMap];
+              return mapped || trimmed;
+            };
 
-              const data = (resolved.data || {}) as {
-                prefecture?: string;
-                municipality?: string;
-              };
-
-              const prefName = String(data.prefecture || '').trim();
-              const municipalityName = String(data.municipality || '').trim();
-
+            const applyResolvedLocation = (prefName: string, municipalityName: string, sourceLabel: string) => {
               if (prefName) {
                 const prefObj = Object.values(PREFECTURE_DATA).find(p => p.name === prefName);
                 if (prefObj && prefObj.name !== selectedPrefecture.name) {
                   setSelectedPrefecture(prefObj);
                   setHasUserSelectedPrefecture(true);
                   AsyncStorage.setItem('selectedPrefecture', prefObj.name).catch(console.error);
-                  return;
+                  return true;
                 }
               }
 
@@ -437,11 +433,75 @@ export default function HomeScreen() {
                   setSelectedMunicipality(foundMunicipality);
                   setSearchQuery(foundMunicipality.name);
                   setHasUserSelectedMunicipality(true);
-                  console.log(`✅ 市町村自動検出(Firebase): ${foundMunicipality.name}`);
+                  console.log(`✅ 市町村自動検出(${sourceLabel}): ${foundMunicipality.name}`);
+                  return true;
                 }
               }
+
+              return false;
+            };
+
+            const resolveLocationFallback = async (latitude: number, longitude: number) => {
+              try {
+                const fallback = await Location.reverseGeocodeAsync({ latitude, longitude });
+                const first = fallback?.[0];
+                if (first) {
+                  const prefName = normalizePrefectureName(first.region || first.subregion || '');
+                  const municipalityName = String(first.city || first.district || first.name || '').trim();
+                  return { prefecture: prefName, municipality: municipalityName, source: 'device' };
+                }
+              } catch (err) {
+                console.log('Device reverse geocode failed, trying Open-Meteo:', err);
+              }
+
+              try {
+                const endpoint =
+                  'https://geocoding-api.open-meteo.com/v1/reverse' +
+                  `?latitude=${encodeURIComponent(String(latitude))}` +
+                  `&longitude=${encodeURIComponent(String(longitude))}` +
+                  '&language=ja&count=1';
+                const resp = await fetch(endpoint);
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                const first = data?.results?.[0];
+                if (!first) return null;
+                const prefName = normalizePrefectureName(first.admin1 || '');
+                const municipalityName = String(first.name || first.admin2 || '').trim();
+                return { prefecture: prefName, municipality: municipalityName, source: 'open_meteo' };
+              } catch (err) {
+                console.log('Open-Meteo reverse geocode failed:', err);
+              }
+
+              return null;
+            };
+
+            try {
+              const resolved = await resolveUserLocation({
+                latitude: bestLoc.coords.latitude,
+                longitude: bestLoc.coords.longitude,
+              });
+
+              const data = (resolved.data || {}) as {
+                prefecture?: string;
+                municipality?: string;
+              };
+
+              const prefName = normalizePrefectureName(data.prefecture || '');
+              const municipalityName = String(data.municipality || '').trim();
+              applyResolvedLocation(prefName, municipalityName, 'Firebase');
             } catch (geocodeErr) {
               console.log("Firebase location resolve error (using fallback):", geocodeErr);
+              const fallback = await resolveLocationFallback(
+                bestLoc.coords.latitude,
+                bestLoc.coords.longitude
+              );
+              if (fallback) {
+                applyResolvedLocation(
+                  fallback.prefecture || '',
+                  fallback.municipality || '',
+                  fallback.source || 'fallback'
+                );
+              }
             }
           }
         }
@@ -799,7 +859,7 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <A8Banner placement="home_bottom" />
+      <A8Banner placement="home_bottom" mode="rotate" />
 
       <Modal visible={showHeroAdvice} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>

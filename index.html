@@ -1,10 +1,49 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/weather.png" />
+    <link rel="apple-touch-icon" href="/weather.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>天気予報アプリ Stogia | 週間予報と生活アドバイス</title>
+    <meta name="description" content="天気予報アプリ Stogia。週間予報、洗濯・服装アドバイス、地域別の詳細表示。必要な情報を一目で確認できます。" />
+    <meta name="keywords" content="天気,天気予報,週間予報,洗濯,服装,気温,降水確率,Stogia" />
+    <meta name="robots" content="index,follow" />
+    <meta name="theme-color" content="#1976D2" />
+    <link rel="canonical" href="https://stogia.weather-app.net/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:site_name" content="Stogia" />
+    <meta property="og:title" content="天気予報アプリ Stogia | 週間予報と生活アドバイス" />
+    <meta property="og:description" content="週間予報・洗濯/服装アドバイス・地域別予報。毎日の判断を最短距離でサポートします。" />
+    <meta property="og:url" content="https://stogia.weather-app.net/" />
+    <meta property="og:image" content="https://stogia.weather-app.net/weather.png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="天気予報アプリ Stogia | 週間予報と生活アドバイス" />
+    <meta name="twitter:description" content="週間予報・洗濯/服装アドバイス・地域別予報。" />
+    <meta name="twitter:image" content="https://stogia.weather-app.net/weather.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Stogia",
+        "applicationCategory": "WeatherApplication",
+        "operatingSystem": "Web, Android, iOS",
+        "description": "週間予報と生活アドバイスを一目で確認できる天気予報アプリ。",
+        "url": "https://stogia.weather-app.net/",
+        "image": "https://stogia.weather-app.net/weather.png",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

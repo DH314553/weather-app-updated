@@ -1,42 +1,58 @@
 import React, { useMemo } from 'react';
 import { Image, Linking, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { logEvent } from '../utils/analytics';
-
-const A8_CLICK_URL = 'https://px.a8.net/svt/ejp?a8mat=4AZ7S2+5YC3BU+2PEO+OJWZL';
-const A8_IMAGE_URL = 'https://www29.a8.net/svt/bgt?aid=260303906360&wid=002&eno=01&mid=s00000012624004124000&mc=1';
-const A8_PIXEL_URL = 'https://www12.a8.net/0.gif?a8mat=4AZ7S2+5YC3BU+2PEO+OJWZL';
-const A8_ASPECT_RATIO = 320 / 50;
+import { A8_ADS, A8Ad } from '../utils/a8Ads';
 
 type Props = {
   placement?: string;
+  ads?: A8Ad[];
+  mode?: 'stack' | 'rotate';
 };
 
-const A8Banner = ({ placement = 'home_bottom' }: Props) => {
+const A8Banner = ({ placement = 'home_bottom', ads = A8_ADS, mode = 'stack' }: Props) => {
   const { width } = useWindowDimensions();
-  const bannerWidth = Math.min(320, Math.max(0, width - 24));
-  const bannerHeight = useMemo(() => Math.round(bannerWidth / A8_ASPECT_RATIO), [bannerWidth]);
+  const containerWidth = Math.max(0, width - 24);
 
-  const handlePress = async () => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.open(A8_CLICK_URL, '_blank', 'noopener,noreferrer');
-    } else {
-      await Linking.openURL(A8_CLICK_URL);
+  const visibleAds = useMemo(() => {
+    if (ads.length === 0) return [];
+    if (mode === 'rotate') {
+      const idx = Math.floor(Date.now() / (1000 * 60)) % ads.length;
+      return [ads[idx]];
     }
-    logEvent('affiliate_click', { placement, network: 'a8', campaign: '4AZ7S2+5YC3BU+2PEO+OJWZL' }).catch(() => {});
+    return ads;
+  }, [ads, mode]);
+
+  const handlePress = async (ad: A8Ad) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(ad.clickUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      await Linking.openURL(ad.clickUrl);
+    }
+    logEvent('affiliate_click', { placement, network: 'a8', campaign: ad.id }).catch(() => {});
   };
 
-  if (bannerWidth <= 0) return null;
+  if (containerWidth <= 0 || visibleAds.length === 0) return null;
 
   return (
     <View style={styles.wrapper}>
-      <Pressable onPress={handlePress} accessibilityRole="link">
-        <Image
-          source={{ uri: A8_IMAGE_URL }}
-          style={[styles.banner, { width: bannerWidth, height: bannerHeight }]}
-          resizeMode="contain"
-        />
-      </Pressable>
-      <Image source={{ uri: A8_PIXEL_URL }} style={styles.pixel} />
+      {visibleAds.map((ad) => {
+        const aspectRatio = ad.width / ad.height;
+        const bannerWidth = Math.min(ad.width, containerWidth);
+        const bannerHeight = Math.round(bannerWidth / aspectRatio);
+
+        return (
+          <View key={ad.id} style={styles.adBlock}>
+            <Pressable onPress={() => handlePress(ad)} accessibilityRole="link">
+              <Image
+                source={{ uri: ad.imageUrl }}
+                style={[styles.banner, { width: bannerWidth, height: bannerHeight }]}
+                resizeMode="contain"
+              />
+            </Pressable>
+            <Image source={{ uri: ad.pixelUrl }} style={styles.pixel} />
+          </View>
+        );
+      })}
     </View>
   );
 };
@@ -45,6 +61,10 @@ const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     marginBottom: 12,
+  },
+  adBlock: {
+    alignItems: 'center',
+    marginBottom: 10,
   },
   banner: {
     borderRadius: 6,
