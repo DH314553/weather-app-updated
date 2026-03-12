@@ -8,8 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf lib",
-    "deploy": "firebase deploy --only functions",
-    "ads:refresh-token": "node scripts/google-ads-refresh-token.mjs"
+    "deploy": "firebase deploy --only functions"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",

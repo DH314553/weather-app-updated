@@ -167,15 +167,6 @@
     "aiWeatherComment": "Comentario meteorológico de IA",
     "relatedFilter": "Publicaciones relacionadas con {tag}"
   },
-  "ads": {
-    "title": "Anuncios",
-    "description": "Conéctese a Google Ads API a través de Firebase Functions.",
-    "managerCustomerId": "ID de cliente de inicio de sesión (opcional)",
-    "managerCustomerIdPlaceholder": "ej.: 1234567890",
-    "fetchAccounts": "Obtener cuentas accesibles",
-    "accountList": "Cuentas de Google Ads accesibles",
-    "noAccounts": "Aún no se han obtenido cuentas."
-  },
   "app": { "title": "Pronóstico del tiempo", "subtitle": "Pronóstico de {prefecture}" },
   "conditions": {
     "sunny": "Soleado",

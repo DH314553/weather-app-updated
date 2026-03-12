@@ -23,6 +23,7 @@ import { registerBackgroundFetchAsync, setupNotificationsAsync } from '../utils/
 import { City } from '../City';
 import { logEvent, logScreenView } from '../utils/analytics';
 import { functionsClient } from '../utils/firebase';
+import A8Banner from '../components/A8Banner';
 
 // --- 型定義 ---
 export type Municipality = { 
@@ -797,6 +798,8 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <A8Banner placement="home_bottom" />
 
       <Modal visible={showHeroAdvice} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>

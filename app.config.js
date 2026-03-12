@@ -1,21 +1,3 @@
-const IS_DEV = process.env.APP_VARIANT === "development";
-
-const ADMOB_APP_ID_ANDROID = IS_DEV
-  ? "ca-app-pub-3940256099942544~3347511713"
-  : "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy";
-
-const ADMOB_APP_ID_IOS = IS_DEV
-  ? "ca-app-pub-3940256099942544~3347511713"
-  : "ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy";
-
-const BANNER_ANDROID = IS_DEV
-  ? "ca-app-pub-3940256099942544/6300978111"
-  : "ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz";
-
-const BANNER_IOS = IS_DEV
-  ? "ca-app-pub-3940256099942544/2934735716"
-  : "ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz";
-
 export default {
   expo: {
     name: "天気予報アプリ(Stogia)",
@@ -81,14 +63,6 @@ export default {
       ],
 
       [
-        "react-native-google-mobile-ads",
-        {
-          androidAppId: ADMOB_APP_ID_ANDROID,
-          iosAppId: ADMOB_APP_ID_IOS
-        }
-      ],
-
-      [
         "expo-notifications",
         {
           icon: "./assets/weather.png",
@@ -113,11 +87,6 @@ export default {
     ],
 
     extra: {
-      admob: {
-        bannerAdUnitIdAndroid: BANNER_ANDROID,
-        bannerAdUnitIdIos: BANNER_IOS
-      },
-
       eas: {
         projectId: "f1a783ce-61ca-4a1f-845a-fdadd7fafc3b"
       }

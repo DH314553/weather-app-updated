@@ -166,15 +166,6 @@
     "aiWeatherComment": "AI天気コメント",
     "relatedFilter": "{tag} の関連投稿"
   },
-  "ads": {
-    "title": "広告",
-    "description": "Firebase Functions 経由で Google Ads API に接続します。",
-    "managerCustomerId": "ログイン顧客ID（任意）",
-    "managerCustomerIdPlaceholder": "例: 1234567890",
-    "fetchAccounts": "利用可能アカウントを取得",
-    "accountList": "アクセス可能な Google Ads アカウント",
-    "noAccounts": "まだ取得されていません。"
-  },
   "app": {
     "title": "天気予報",
     "subtitle": "{prefecture}の予報"

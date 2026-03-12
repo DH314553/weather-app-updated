@@ -167,15 +167,6 @@
     "aiWeatherComment": "AI weather comment",
     "relatedFilter": "Related posts for {tag}"
   },
-  "ads": {
-    "title": "Ads",
-    "description": "Connect to Google Ads API through Firebase Functions.",
-    "managerCustomerId": "Login customer ID (optional)",
-    "managerCustomerIdPlaceholder": "e.g. 1234567890",
-    "fetchAccounts": "Fetch accessible accounts",
-    "accountList": "Accessible Google Ads accounts",
-    "noAccounts": "No accounts fetched yet."
-  },
   "app": {
     "title": "Weather Forecast",
     "subtitle": "{prefecture} forecast"
